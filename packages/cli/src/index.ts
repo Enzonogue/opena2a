@@ -8,8 +8,9 @@ import { handleContext } from './contextual/index.js';
 import { handleNaturalLanguage } from './natural/index.js';
 import { runWizard } from './guided/wizard.js';
 import { ADAPTER_REGISTRY } from './adapters/registry.js';
+import { getVersion } from './util/version.js';
 
-const VERSION = '0.1.0';
+const VERSION = getVersion();
 
 async function main(): Promise<void> {
   const program = new Command();
@@ -22,7 +23,21 @@ async function main(): Promise<void> {
     .option('--quiet', 'Suppress non-essential output')
     .option('--verbose', 'Verbose output')
     .option('--format <type>', 'Output format: text, json, sarif', 'text')
-    .option('--contribute', 'Share anonymized scan results with OpenA2A community');
+    .option('--contribute', 'Share anonymized scan results with OpenA2A community')
+    .addHelpText('after', `
+Quick Start:
+  $ opena2a init                 Assess your project's security posture
+  $ opena2a protect              Detect and migrate hardcoded credentials
+  $ opena2a guard sign           Sign config files for tamper detection
+  $ opena2a scan secure          Run 150+ security checks on your AI agent
+
+Smart Features:
+  $ opena2a                      Interactive guided mode (no args)
+  $ opena2a ~<query>             Search commands (e.g. opena2a ~drift)
+  $ opena2a ?                    Get smart recommendations for your project
+  $ opena2a "scan for secrets"   Natural language command matching
+
+Learn more: https://opena2a.org/docs`);
 
   // Register all adapter-backed commands
   for (const [name, config] of Object.entries(ADAPTER_REGISTRY)) {
@@ -44,8 +59,30 @@ async function main(): Promise<void> {
       });
   }
 
-  // Intent commands (init is handled as a direct command below)
-  for (const intent of ['check', 'protect', 'status', 'publish']) {
+  // Protect command (direct, not adapter-based)
+  program
+    .command('protect')
+    .description('Detect and migrate credentials to encrypted vault')
+    .option('--dry-run', 'Show what would change without modifying files')
+    .option('--report <path>', 'Write interactive HTML report')
+    .option('--skip-verify', 'Skip verification re-scan')
+    .option('--dir <path>', 'Target directory')
+    .action(async (opts) => {
+      const { protect: runProtect } = await import('./commands/protect.js');
+      const globalOpts = program.opts();
+      process.exitCode = await runProtect({
+        targetDir: opts.dir ?? process.cwd(),
+        dryRun: opts.dryRun,
+        verbose: globalOpts.verbose,
+        ci: globalOpts.ci,
+        format: globalOpts.format as 'text' | 'json',
+        skipVerify: opts.skipVerify,
+        report: opts.report,
+      });
+    });
+
+  // Intent commands (init and protect are handled as direct commands)
+  for (const intent of ['check', 'status', 'publish']) {
     if (!ADAPTER_REGISTRY[intent]) {
       program
         .command(intent)
@@ -106,8 +143,9 @@ async function main(): Promise<void> {
     .command('runtime <subcommand>')
     .description('Agent runtime protection (start|status|tail|init)')
     .option('--config <path>', 'Path to ARP config file')
-    .option('--count <n>', 'Number of events to show (tail)')
+    .option('--count <n>', 'Number of events to show (tail) [default: 20]')
     .option('--dir <path>', 'Target directory')
+    .option('--force', 'Overwrite existing config (init)')
     .action(async (subcommand: string, opts) => {
       const { runtime } = await import('./commands/runtime.js');
       const globalOpts = program.opts();
@@ -119,6 +157,7 @@ async function main(): Promise<void> {
         ci: globalOpts.ci,
         format: globalOpts.format,
         verbose: globalOpts.verbose,
+        force: opts.force,
       });
     });
 
@@ -186,6 +225,11 @@ async function main(): Promise<void> {
   program
     .command('config <action> [key] [value]')
     .description('Manage OpenA2A configuration')
+    .addHelpText('after', `
+Valid actions:
+  show                  Display current configuration
+  contribute [on|off]   Enable or disable community data contributions
+  llm [on|off]          Enable or disable LLM-powered features`)
     .action(async (action: string, key?: string, value?: string) => {
       const shared = await import('@opena2a/shared');
       const { loadUserConfig, saveUserConfig, setContributeEnabled } = 'default' in shared ? (shared as any).default : shared;

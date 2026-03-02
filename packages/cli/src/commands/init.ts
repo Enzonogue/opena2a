@@ -11,6 +11,7 @@ import { bold, green, yellow, red, cyan, dim, gray } from '../util/colors.js';
 import { detectProject } from '../util/detect.js';
 import { quickCredentialScan } from '../util/credential-patterns.js';
 import { checkAdvisories, printAdvisoryWarnings, type AdvisoryCheck } from '../util/advisories.js';
+import { getVersion } from '../util/version.js';
 
 // --- Types ---
 
@@ -106,14 +107,52 @@ export async function init(options: InitOptions): Promise<number> {
   if (options.format === 'json') {
     process.stdout.write(JSON.stringify(report, null, 2) + '\n');
   } else {
-    printReport(report);
+    printReport(report, options.verbose);
+
+    // Verbose: show individual credential findings
+    if (options.verbose && credentialMatches.length > 0) {
+      process.stdout.write(bold('  Credential Details') + '\n');
+      process.stdout.write(gray('  ' + '-'.repeat(47)) + '\n');
+      for (const m of credentialMatches) {
+        const sev = m.severity === 'critical' ? red('[CRITICAL]')
+          : m.severity === 'high' ? yellow('[HIGH]')
+          : cyan('[MEDIUM]');
+        const relPath = path.relative(targetDir, m.filePath);
+        process.stdout.write(`  ${sev} ${bold(m.findingId)}: ${m.title}\n`);
+        process.stdout.write(`  ${dim('  File:')} ${relPath}:${m.line}\n`);
+        if (m.explanation) {
+          process.stdout.write(`  ${dim('  Why:')} ${m.explanation}\n`);
+        }
+        process.stdout.write('\n');
+      }
+    }
+
+    // Drift detection callout (always shown when drift findings exist)
+    const driftFindings = credentialMatches.filter(m => m.findingId.startsWith('DRIFT'));
+    if (driftFindings.length > 0) {
+      process.stdout.write(yellow(bold('  Scope Drift Detected')) + '\n');
+      process.stdout.write(gray('  ' + '-'.repeat(47)) + '\n');
+      for (const d of driftFindings) {
+        const relPath = path.relative(targetDir, d.filePath);
+        const driftType = d.findingId === 'DRIFT-001' ? 'Google Maps key may access Gemini AI' : 'AWS key may access Bedrock AI';
+        process.stdout.write(`  ${yellow(d.findingId)} ${driftType}\n`);
+        process.stdout.write(`  ${dim('  ' + relPath + ':' + d.line)}\n`);
+      }
+      process.stdout.write('\n');
+      process.stdout.write(dim('  Scope drift: keys provisioned for one service silently') + '\n');
+      process.stdout.write(dim('  gain access to AI services, expanding attack surface.') + '\n');
+      process.stdout.write(dim('  Run: opena2a protect') + '\n');
+      process.stdout.write('\n');
+    }
+
     // Show advisory warnings after main report
     if (advisoryCheck.advisories.length > 0) {
       printAdvisoryWarnings(advisoryCheck);
     }
   }
 
-  return 0;
+  const hasCritical = nextSteps.some(s => s.severity === 'critical');
+  return hasCritical ? 1 : 0;
 }
 
 // --- Hygiene checks ---
@@ -297,8 +336,8 @@ function formatProjectType(project: ReturnType<typeof detectProject>): string {
   return parts.join(' ');
 }
 
-function printReport(report: InitReport): void {
-  const VERSION = '0.1.0';
+function printReport(report: InitReport, _verbose?: boolean): void {
+  const VERSION = getVersion();
 
   process.stdout.write('\n');
   process.stdout.write(bold('  OpenA2A Security Initialization') + dim(`  v${VERSION}`) + '\n\n');
@@ -355,6 +394,11 @@ function printReport(report: InitReport): void {
   }
 
   process.stdout.write('\n');
-  process.stdout.write(dim('  Open source: https://opena2a.org/star') + '\n');
+
+  // Quick start hints for new users
+  process.stdout.write(dim('  Tip: Try these commands to explore further:') + '\n');
+  process.stdout.write(dim('    opena2a ~<query>     Search commands (e.g. opena2a ~drift)') + '\n');
+  process.stdout.write(dim('    opena2a ?             Get smart recommendations') + '\n');
+  process.stdout.write(dim('    opena2a --help        See all available commands') + '\n');
   process.stdout.write('\n');
 }
