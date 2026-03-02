@@ -15,6 +15,7 @@ import { homedir } from 'node:os';
 import type { IntegrityCheck, IntegrityState, IntegrityStatus } from './types.js';
 import { SHIELD_POLICY_FILE } from './types.js';
 import { verifyAllArtifacts } from './signing.js';
+import { GENESIS_HASH } from './events.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -294,7 +295,7 @@ function verifyEventChainIntegrity(): IntegrityCheck {
     };
   }
 
-  let previousHash = '';
+  let previousHash = GENESIS_HASH;
 
   for (let i = 0; i < lines.length; i++) {
     let event: { prevHash?: string; eventHash?: string };

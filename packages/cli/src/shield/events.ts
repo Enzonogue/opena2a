@@ -96,7 +96,7 @@ export function getEventsPath(): string {
 // Hashing helpers
 // ---------------------------------------------------------------------------
 
-const GENESIS_HASH = createHash('sha256').update('genesis').digest('hex');
+export const GENESIS_HASH = createHash('sha256').update('genesis').digest('hex');
 
 /** Compute SHA-256 hex digest of a string. */
 function sha256(data: string): string {
