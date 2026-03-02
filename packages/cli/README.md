@@ -1,15 +1,16 @@
 <div align="center">
 
-# OpenA2A
+# opena2a-cli
 
 **Open-source security platform for AI agents**
 
 Credential detection, scope drift analysis, config integrity, runtime monitoring, and supply chain verification -- one CLI.
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/opena2a-org/opena2a/blob/main/LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)]()
+[![npm](https://img.shields.io/npm/v/opena2a-cli.svg)](https://www.npmjs.com/package/opena2a-cli)
 
-[Website](https://opena2a.org) | [Docs](https://opena2a.org/docs) | [Registry](https://registry.opena2a.org) | [Discord](https://discord.gg/uRZa3KXgEn)
+[Website](https://opena2a.org) | [Docs](https://opena2a.org/docs) | [Registry](https://registry.opena2a.org) | [Discord](https://discord.gg/uRZa3KXgEn) | [GitHub](https://github.com/opena2a-org/opena2a)
 
 </div>
 
@@ -33,10 +34,6 @@ No configuration required. Works with Node.js, Python, Go, and MCP server projec
 ## What It Does
 
 Run `opena2a init` in any project directory to get an instant security assessment:
-
-<p align="center">
-  <img src="docs/vhs/init.gif" alt="opena2a init demo" width="700" />
-</p>
 
 ```
   OpenA2A Security Initialization  v0.1.0
@@ -85,10 +82,6 @@ opena2a protect       # Migrate credentials to env vars + vault
 opena2a guard sign    # Sign config files for tamper detection
 opena2a init          # Re-assess -- watch your score improve
 ```
-
-<p align="center">
-  <img src="docs/vhs/protect.gif" alt="opena2a protect demo" width="700" />
-</p>
 
 ## Scope Drift Detection
 
@@ -243,31 +236,6 @@ All commands support `--format json` and `--ci` flags for pipeline integration:
 | JSON | `--format json` | CI pipelines, programmatic consumption |
 | HTML | `--report <path>` | Interactive report with filtering (protect command) |
 
-## Architecture
-
-```
-opena2a CLI
-  |
-  +-- init          Project assessment, trust scoring
-  +-- protect       Credential detection + migration
-  +-- guard         Config file integrity (SHA-256 signing)
-  +-- runtime       ARP monitoring wrapper
-  +-- verify        Binary integrity via Trust Registry
-  +-- self-register Tool registration in Trust Registry
-  +-- config        User preferences
-  |
-  +-- Adapters (install on first use)
-       +-- scan      -> hackmyagent
-       +-- secrets   -> secretless-ai
-       +-- benchmark -> @opena2a/oasb
-       +-- registry  -> ai-trust
-       +-- train     -> opena2a/dvaa (Docker)
-       +-- crypto    -> cryptoserve (Python)
-       +-- identity  -> aim
-       +-- broker    -> secretless-ai
-       +-- dlp       -> secretless-ai
-```
-
 ## Credential Patterns
 
 Detected credential types and their finding IDs:
@@ -292,23 +260,6 @@ Language-aware replacements:
 | Java/Kotlin | `System.getenv("VAR_NAME")` |
 | Rust | `std::env::var("VAR_NAME").unwrap_or_default()` |
 | YAML/TOML/JSON | `${VAR_NAME}` |
-
-## Upstream Contributions
-
-We contribute security fixes back to the open-source projects we audit.
-
-**[Open WebUI](https://github.com/open-webui/open-webui)** (205K+ stars) -- 8 security PRs (7 merged, 1 open):
-
-- Credential redaction in gateway config responses ([#9858](https://github.com/open-webui/open-webui/pull/9858))
-- Skill/plugin code safety scanner ([#9806](https://github.com/open-webui/open-webui/pull/9806))
-- Path traversal prevention in file serving ([#10525](https://github.com/open-webui/open-webui/pull/10525))
-- Security headers for gateway HTTP responses ([#10526](https://github.com/open-webui/open-webui/pull/10526))
-- Timing-safe comparison for hook token auth ([#10527](https://github.com/open-webui/open-webui/pull/10527))
-- Supply chain hardening with --ignore-scripts ([#10528](https://github.com/open-webui/open-webui/pull/10528))
-- File permission enforcement for credential files ([#10529](https://github.com/open-webui/open-webui/pull/10529))
-- Skill scanner false positive reduction ([#10530](https://github.com/open-webui/open-webui/pull/10530))
-
-**[Nanobot](https://github.com/HKUDS/nanobot)** -- Path traversal, XSS, and shell escape fixes ([#472](https://github.com/HKUDS/nanobot/pull/472))
 
 ## Requirements
 
