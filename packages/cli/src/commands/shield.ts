@@ -16,6 +16,7 @@
  * - triage:    LLM-powered incident classification and response
  */
 
+import * as path from 'node:path';
 import type { EventSeverity } from '../shield/types.js';
 import { bold, dim, gray, green, yellow, red, cyan } from '../util/colors.js';
 
@@ -68,9 +69,11 @@ export async function shield(options: ShieldOptions): Promise<number> {
       return handleExplain(options);
     case 'triage':
       return handleTriage(options);
+    case 'monitor':
+      return handleMonitor(options);
     default:
       process.stderr.write(red(`Unknown subcommand: ${options.subcommand}\n`));
-      process.stderr.write('Usage: opena2a shield <init|status|log|selfcheck|policy|evaluate|recover|report|session|suggest|explain|triage>\n');
+      process.stderr.write('Usage: opena2a shield <init|status|log|selfcheck|policy|evaluate|recover|report|monitor|session|suggest|explain|triage>\n');
       return 1;
   }
 }
@@ -459,6 +462,7 @@ async function buildNarrative(
   topActions: { name: string; count: number }[],
 ): Promise<import('../shield/types.js').ReportNarrative | null> {
   const { generateNarrative } = await import('../shield/llm.js');
+  const { getARPStats } = await import('../shield/arp-bridge.js');
   const { hostname } = await import('node:os');
 
   const now = new Date();
@@ -580,6 +584,8 @@ async function buildNarrative(
   score = Math.max(0, Math.min(100, score));
   const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
 
+  const arpStats = getARPStats(since);
+
   const report: import('../shield/types.js').WeeklyReport = {
     version: 1,
     generatedAt: now.toISOString(),
@@ -621,10 +627,10 @@ async function buildNarrative(
     },
 
     runtimeProtection: {
-      arpActive: false,
-      processesSpawned: 0,
-      networkConnections: 0,
-      anomalies: 0,
+      arpActive: arpStats.totalEvents > 0,
+      processesSpawned: arpStats.processEvents,
+      networkConnections: arpStats.networkEvents,
+      anomalies: arpStats.anomalies + arpStats.violations + arpStats.threats,
     },
 
     posture: {
@@ -641,6 +647,81 @@ async function buildNarrative(
   };
 
   return generateNarrative(report);
+}
+
+// --- Monitor ---
+
+async function handleMonitor(options: ShieldOptions): Promise<number> {
+  const { importARPEvents, getARPStats } = await import('../shield/arp-bridge.js');
+  const isJson = options.format === 'json';
+  const targetDir = options.dir ? path.resolve(options.dir) : process.cwd();
+
+  // Step 1: Import any existing ARP events into Shield's hash chain
+  const result = importARPEvents(targetDir, options.agent);
+
+  // Step 2: Get ARP stats from Shield's unified log
+  const stats = getARPStats(options.since ?? '7d');
+
+  if (isJson) {
+    process.stdout.write(JSON.stringify({
+      import: result,
+      stats,
+    }, null, 2) + '\n');
+    return 0;
+  }
+
+  process.stdout.write(bold('Shield ARP Monitor') + '\n');
+  process.stdout.write(gray('-'.repeat(50)) + '\n');
+
+  // Import results
+  if (result.total > 0) {
+    process.stdout.write(bold('  Event Import') + '\n');
+    if (result.imported > 0) {
+      process.stdout.write(`    ${green(`${result.imported} new events`)} imported into Shield log\n`);
+    }
+    if (result.skipped > 0) {
+      process.stdout.write(`    ${dim(`${result.skipped} already imported`)}\n`);
+    }
+    if (result.errors > 0) {
+      process.stdout.write(`    ${yellow(`${result.errors} parse errors`)}\n`);
+    }
+    process.stdout.write('\n');
+  } else {
+    process.stdout.write(dim('  No ARP events found.') + '\n');
+    process.stdout.write(dim('  Start ARP monitoring: opena2a runtime start') + '\n\n');
+  }
+
+  // ARP stats from Shield's unified log
+  if (stats.totalEvents > 0) {
+    process.stdout.write(bold('  Runtime Protection Summary') + '\n');
+    process.stdout.write(`    ${dim('Total events')}       ${stats.totalEvents}\n`);
+    process.stdout.write(`    ${dim('Process events')}     ${stats.processEvents}\n`);
+    process.stdout.write(`    ${dim('Network events')}     ${stats.networkEvents}\n`);
+    process.stdout.write(`    ${dim('Filesystem events')}  ${stats.filesystemEvents}\n`);
+    process.stdout.write(`    ${dim('Prompt events')}      ${stats.promptEvents}\n`);
+
+    if (stats.anomalies > 0 || stats.violations > 0 || stats.threats > 0) {
+      process.stdout.write('\n');
+      process.stdout.write(bold('  Detections') + '\n');
+      if (stats.anomalies > 0) {
+        process.stdout.write(`    ${yellow(`${stats.anomalies} anomalies`)}\n`);
+      }
+      if (stats.violations > 0) {
+        process.stdout.write(`    ${red(`${stats.violations} violations`)}\n`);
+      }
+      if (stats.threats > 0) {
+        process.stdout.write(`    ${bold(red(`${stats.threats} threats`))}\n`);
+      }
+      if (stats.enforcements > 0) {
+        process.stdout.write(`    ${cyan(`${stats.enforcements} enforcements`)}\n`);
+      }
+    } else {
+      process.stdout.write(`    ${green('No anomalies or threats detected')}\n`);
+    }
+  }
+
+  process.stdout.write(gray('-'.repeat(50)) + '\n');
+  return 0;
 }
 
 // --- Session ---

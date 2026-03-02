@@ -12,6 +12,9 @@ import { detectProject } from '../util/detect.js';
 import { quickCredentialScan } from '../util/credential-patterns.js';
 import { checkAdvisories, printAdvisoryWarnings, type AdvisoryCheck } from '../util/advisories.js';
 import { getVersion } from '../util/version.js';
+import { writeEvent, getShieldDir } from '../shield/events.js';
+import { getShieldStatus } from '../shield/status.js';
+import type { EventSeverity, RiskLevel } from '../shield/types.js';
 
 // --- Types ---
 
@@ -46,6 +49,10 @@ interface InitReport {
   grade: string;
   nextSteps: NextStep[];
   advisories: { count: number; matchedPackages: string[] };
+  postureScore: number;
+  riskLevel: RiskLevel;
+  activeProducts: number;
+  totalProducts: number;
 }
 
 // --- Core ---
@@ -85,6 +92,61 @@ export async function init(options: InitOptions): Promise<number> {
   // 6. Generate next steps
   const nextSteps = generateNextSteps(credentialMatches.length, credsBySeverity, checks);
 
+  // 6.5. Compute posture score from Shield product detection
+  const shieldStatus = getShieldStatus(targetDir);
+  const activeProducts = shieldStatus.products.filter(p => p.active).length;
+  const totalProducts = shieldStatus.products.length;
+  let postureScore = 0;
+  postureScore += Math.min(activeProducts * 10, 60);
+  if (shieldStatus.policyLoaded) postureScore += 10;
+  if (shieldStatus.shellIntegration) postureScore += 5;
+  if (credentialMatches.length === 0) postureScore += 15;
+  const sigDir = path.join(targetDir, '.opena2a', 'signatures');
+  if (fs.existsSync(sigDir)) postureScore += 10;
+  postureScore = Math.max(0, Math.min(100, postureScore));
+  const riskLevel: RiskLevel = postureScore < 30 ? 'CRITICAL'
+    : postureScore < 50 ? 'HIGH'
+    : postureScore < 70 ? 'MEDIUM'
+    : postureScore < 90 ? 'LOW'
+    : 'SECURE';
+
+  // 6.6. Write shield events for posture and credential findings
+  try {
+    getShieldDir();
+    writeEvent({
+      source: 'shield',
+      category: 'shield.posture',
+      severity: (riskLevel === 'CRITICAL' ? 'critical' : riskLevel === 'HIGH' ? 'high' : riskLevel === 'MEDIUM' ? 'medium' : 'info') as EventSeverity,
+      agent: null,
+      sessionId: null,
+      action: 'posture-assessment',
+      target: targetDir,
+      outcome: 'monitored',
+      detail: { score: postureScore, riskLevel, activeProducts, totalProducts, trustScore: score, grade },
+      orgId: null,
+      managed: false,
+      agentId: null,
+    });
+    for (const cred of credentialMatches) {
+      writeEvent({
+        source: 'shield',
+        category: 'shield.credential',
+        severity: (cred.severity === 'critical' ? 'critical' : cred.severity === 'high' ? 'high' : 'medium') as EventSeverity,
+        agent: null,
+        sessionId: null,
+        action: 'credential-finding',
+        target: cred.filePath,
+        outcome: 'monitored',
+        detail: { findingId: cred.findingId, title: cred.title, line: cred.line },
+        orgId: null,
+        managed: false,
+        agentId: null,
+      });
+    }
+  } catch {
+    // Shield event writing is best-effort
+  }
+
   // 7. Build report
   const report: InitReport = {
     projectName: project.name,
@@ -101,6 +163,10 @@ export async function init(options: InitOptions): Promise<number> {
       count: advisoryCheck.advisories.length,
       matchedPackages: advisoryCheck.matchedPackages,
     },
+    postureScore,
+    riskLevel,
+    activeProducts,
+    totalProducts,
   };
 
   // 8. Output
@@ -373,6 +439,16 @@ function printReport(report: InitReport, _verbose?: boolean): void {
     : red;
 
   process.stdout.write(`  ${dim('Trust Score')}      ${scoreColor(`${report.trustScore} / 100`)}  ${dim('[Grade:')} ${scoreColor(report.grade)}${dim(']')}\n`);
+
+  // Shield posture
+  const postureColor = report.postureScore >= 70 ? green
+    : report.postureScore >= 40 ? yellow
+    : red;
+  const riskColor = report.riskLevel === 'SECURE' || report.riskLevel === 'LOW' ? green
+    : report.riskLevel === 'MEDIUM' ? yellow
+    : red;
+  process.stdout.write(`  ${dim('Shield Posture')}   ${postureColor(`${report.postureScore} / 100`)}  ${dim('[Risk:')} ${riskColor(report.riskLevel)}${dim(']')}\n`);
+  process.stdout.write(`  ${dim('Products')}        ${report.activeProducts} / ${report.totalProducts} active\n`);
   process.stdout.write('\n');
 
   // Next steps
@@ -397,8 +473,9 @@ function printReport(report: InitReport, _verbose?: boolean): void {
 
   // Quick start hints for new users
   process.stdout.write(dim('  Tip: Try these commands to explore further:') + '\n');
-  process.stdout.write(dim('    opena2a ~<query>     Search commands (e.g. opena2a ~drift)') + '\n');
-  process.stdout.write(dim('    opena2a ?             Get smart recommendations') + '\n');
-  process.stdout.write(dim('    opena2a --help        See all available commands') + '\n');
+  process.stdout.write(dim('    opena2a shield status   View Shield product status') + '\n');
+  process.stdout.write(dim('    opena2a shield report   Generate security posture report') + '\n');
+  process.stdout.write(dim('    opena2a shield monitor  Start ARP runtime monitoring') + '\n');
+  process.stdout.write(dim('    opena2a ~<query>        Search commands (e.g. opena2a ~drift)') + '\n');
   process.stdout.write('\n');
 }

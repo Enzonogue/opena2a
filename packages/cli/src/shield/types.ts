@@ -64,6 +64,7 @@ export type ShieldEventSource =
 
 export type EventSeverity = 'info' | 'low' | 'medium' | 'high' | 'critical';
 export type EventOutcome = 'allowed' | 'blocked' | 'monitored';
+export type RiskLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'SECURE';
 
 export interface ShieldEvent {
   id: string;
