@@ -50,6 +50,8 @@ interface ProtectReport {
   verificationPassed: boolean;
   /** Duration in milliseconds */
   durationMs: number;
+  /** Liveness verification results for DRIFT findings (key value -> result) */
+  livenessResults?: Record<string, LivenessResult>;
 }
 
 export interface ProtectOptions {
@@ -65,6 +67,8 @@ export interface ProtectOptions {
   format?: 'text' | 'json';
   /** Skip verification re-scan */
   skipVerify?: boolean;
+  /** Skip liveness verification for DRIFT findings (offline/CI) */
+  skipLiveness?: boolean;
   /** Path to write interactive HTML report */
   report?: string;
 }
@@ -79,6 +83,11 @@ import {
   type CredentialPattern,
   type CredentialMatch,
 } from '../util/credential-patterns.js';
+import {
+  verifyDriftFindings,
+  applyLivenessResults,
+  type LivenessResult,
+} from '../util/drift-verification.js';
 
 // --- Core logic ---
 
@@ -102,7 +111,7 @@ export async function protect(options: ProtectOptions): Promise<number> {
   const spinner = new Spinner('Scanning for credentials...');
   spinner.start();
 
-  const matches = scanForCredentials(targetDir);
+  let matches = scanForCredentials(targetDir);
   spinner.stop();
 
   const isJson = options.format === 'json';
@@ -124,6 +133,45 @@ export async function protect(options: ProtectOptions): Promise<number> {
       process.stdout.write(green('No hardcoded credentials detected.\n'));
     }
     return 0;
+  }
+
+  // Phase 1.5: Liveness verification for DRIFT findings
+  let livenessResults: Map<string, LivenessResult> | undefined;
+  const hasDriftFindings = matches.some(m => m.findingId.startsWith('DRIFT-'));
+
+  if (hasDriftFindings && !options.skipLiveness) {
+    if (!isJson) {
+      spinner.update('Verifying credential drift (liveness check)...');
+      spinner.start();
+    }
+
+    livenessResults = await verifyDriftFindings(matches);
+    matches = applyLivenessResults(matches, livenessResults);
+
+    if (!isJson) {
+      spinner.stop();
+      for (const [_key, result] of livenessResults) {
+        if (result.live) {
+          process.stdout.write(
+            red(`${result.findingId}: DRIFT CONFIRMED`) +
+            ' -- ' + result.detail + '\n'
+          );
+          process.stdout.write(
+            '  Severity escalated: ' + yellow('high') + ' -> ' + red('critical') + '\n\n'
+          );
+        } else if (result.checked && !result.error) {
+          process.stdout.write(
+            dim(`${result.findingId}: ${result.detail}`) + '\n\n'
+          );
+        } else if (result.error) {
+          process.stdout.write(
+            dim(`${result.findingId}: ${result.detail}`) + '\n\n'
+          );
+        }
+      }
+    }
+  } else if (hasDriftFindings && options.skipLiveness && !isJson) {
+    process.stdout.write(dim('Liveness verification skipped (--skip-liveness)\n\n'));
   }
 
   if (!isJson) {
@@ -215,6 +263,15 @@ export async function protect(options: ProtectOptions): Promise<number> {
 
   // Phase 5: Report
   const durationMs = Date.now() - startTime;
+  // Convert liveness results map to plain object for JSON serialization
+  let livenessRecord: Record<string, LivenessResult> | undefined;
+  if (livenessResults && livenessResults.size > 0) {
+    livenessRecord = {};
+    for (const [key, val] of livenessResults) {
+      livenessRecord[key] = val;
+    }
+  }
+
   const report: ProtectReport = {
     targetDir,
     totalFound: matches.length,
@@ -224,6 +281,7 @@ export async function protect(options: ProtectOptions): Promise<number> {
     results,
     verificationPassed,
     durationMs,
+    livenessResults: livenessRecord,
   };
 
   if (options.format === 'json') {
@@ -450,16 +508,23 @@ function replaceInSource(credential: CredentialMatch): boolean {
 
   if (shouldStripQuotes(ext)) {
     // For programming languages, replace the entire quoted expression
-    // (including surrounding quotes) with the bare env var reference
-    const quotedDouble = `"${credential.value}"`;
-    const quotedSingle = `'${credential.value}'`;
+    // (including surrounding quotes) with the bare env var reference.
+    // Use regex to find the enclosing quoted string so we handle cases
+    // where the matched credential is a substring of the quoted content
+    // (e.g., regex matches 20-char AWS key but string has trailing chars).
+    const escVal = credential.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const dblQuoteRegex = new RegExp(`"[^"]*${escVal}[^"]*"`);
+    const sglQuoteRegex = new RegExp(`'[^']*${escVal}[^']*'`);
 
-    if (content.includes(quotedDouble)) {
-      newContent = content.replace(quotedDouble, replacement);
-    } else if (content.includes(quotedSingle)) {
-      newContent = content.replace(quotedSingle, replacement);
+    const dblMatch = content.match(dblQuoteRegex);
+    const sglMatch = content.match(sglQuoteRegex);
+
+    if (dblMatch) {
+      newContent = content.replace(dblMatch[0], replacement);
+    } else if (sglMatch) {
+      newContent = content.replace(sglMatch[0], replacement);
     } else {
-      // No quotes found (e.g., template literal or unquoted), replace value directly
+      // No enclosing quotes found (e.g., template literal or unquoted)
       newContent = content.replace(credential.value, replacement);
     }
   } else {
@@ -590,7 +655,7 @@ function createBrokerPolicy(credential: CredentialMatch, targetDir: string): boo
       comment: `Auto-generated by opena2a protect from ${projectName}. Add allow rules for authorized agents.`,
     });
 
-    fs.writeFileSync(policyFile, JSON.stringify(policies, null, 2) + '\n', { encoding: 'utf-8', mode: 0o600 });
+    fs.writeFileSync(policyFile, JSON.stringify({ rules: policies }, null, 2) + '\n', { encoding: 'utf-8', mode: 0o600 });
     return true;
   } catch {
     return false;
