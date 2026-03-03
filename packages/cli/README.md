@@ -204,9 +204,14 @@ opena2a shield selfcheck         # Run integrity checks across all subsystems
 | **LLM intelligence** | AI-powered policy suggestions, anomaly explanations, incident triage | Active (opt-in) |
 | **Integrity selfcheck** | Verifies policy, shell hooks, event chain, process, and artifact signatures | Active |
 | **Lockdown mode** | Enters lockdown when integrity checks fail; requires explicit recovery | Active |
-| **Adaptive learning** | Observes agent behavior to build per-agent baselines and suggest policies | Architecture ready |
+| **Adaptive baselines** | Learns per-agent behavior, tracks stability across sessions, suggests policies | Active |
+| **Enforcement mode** | Shell hooks check policy in enforce mode and block denied commands | Active |
+| **HTML posture report** | Interactive dark-theme HTML report with severity chart, filters, and agent activity | Active |
 
-Shield currently operates in **observation and detection** mode. It logs, classifies, and surfaces security events for the developer to act on. Enforcement (automatic blocking) is on the roadmap once baselines are established through the adaptive learning phase.
+Shield operates in three modes:
+- **Monitor** (default): Logs and surfaces security events for developer review.
+- **Enforce**: Shell hooks call `opena2a shield evaluate` before each command. Denied commands are blocked with exit code 1.
+- **Baseline learning**: Observes agent behavior across sessions and suggests policy rules when behavior stabilizes.
 
 ### Subcommands
 
@@ -264,10 +269,11 @@ opena2a shield policy --format json
 
 #### `opena2a shield evaluate`
 
-Evaluate an action against the loaded policy. Returns `ALLOWED`, `BLOCKED`, or `MONITORED`.
+Evaluate an action against the loaded policy. Returns `ALLOWED`, `BLOCKED`, or `MONITORED`. In enforce mode, shell hooks call this before every command and block denied actions.
 
 ```bash
 opena2a shield evaluate --category processes --agent claude-code
+opena2a shield evaluate "curl evil.com"    # Evaluate a command string
 opena2a shield evaluate --format json
 ```
 
@@ -284,10 +290,11 @@ opena2a shield monitor --format json
 
 #### `opena2a shield report`
 
-Generate a security posture report from event data. Includes severity breakdown, agent activity, policy violations, and top actions.
+Generate a security posture report from event data. Includes severity breakdown, agent activity, policy violations, and top actions. Supports interactive HTML output.
 
 ```bash
-opena2a shield report                       # Last 7 days
+opena2a shield report                       # Last 7 days (text)
+opena2a shield report --report posture.html # Interactive HTML report
 opena2a shield report --since 30d          # Last 30 days
 opena2a shield report --analyze            # Include LLM narrative
 opena2a shield report --format json
@@ -341,6 +348,29 @@ opena2a shield triage                       # Triage high+ severity events
 opena2a shield triage --severity medium    # Include medium severity
 opena2a shield triage --agent windsurf     # For specific agent
 ```
+
+#### `opena2a shield baseline`
+
+Manage per-agent behavioral baselines. Baselines track observed actions across sessions and compute stability scores to determine when behavior has converged enough to generate policy recommendations.
+
+```bash
+opena2a shield baseline                    # List all baselines
+opena2a shield baseline claude-code        # Show detail for specific agent
+opena2a shield baseline --format json
+```
+
+Phases: **learning** (collecting observations) -> **stabilizing** (fewer new behaviors) -> **stable** (ready for policy generation). Stability is measured as the fraction of recent sessions with no previously-unseen behavior.
+
+### CI Integration
+
+Shield includes a GitHub Actions workflow for automated security checks on every PR.
+
+```bash
+# Copy the example workflow to your project
+cp node_modules/opena2a-cli/examples/github-actions-shield.yml .github/workflows/shield.yml
+```
+
+See `examples/github-actions-shield.yml` for a minimal copy-paste-ready workflow, or `.github/workflows/shield-check.yml` for the full implementation with PR comment integration.
 
 ### Event Log Format
 
@@ -428,7 +458,7 @@ All commands support `--format json` and `--ci` flags for pipeline integration:
 |--------|------|----------|
 | Text | `--format text` (default) | Human-readable terminal output |
 | JSON | `--format json` | CI pipelines, programmatic consumption |
-| HTML | `--report <path>` | Interactive report with filtering (protect command) |
+| HTML | `--report <path>` | Interactive report with filtering (protect and shield report) |
 
 ## Credential Patterns
 
