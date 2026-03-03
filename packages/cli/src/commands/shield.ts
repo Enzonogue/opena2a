@@ -645,9 +645,16 @@ async function buildWeeklyReport(
     }
   }
 
-  const criticalCount = bySeverity['critical'] ?? 0;
-  const highCount = bySeverity['high'] ?? 0;
-  const mediumCount = bySeverity['medium'] ?? 0;
+  // Posture score: only count external threat events, not Shield's own diagnostic scans.
+  // Shield events (posture-assessment, credential-finding, shield.init) are informational.
+  const threatEvents = events.filter(e => e.source !== 'shield');
+  const threatSeverity: Record<string, number> = {};
+  for (const e of threatEvents) {
+    threatSeverity[e.severity] = (threatSeverity[e.severity] ?? 0) + 1;
+  }
+  const criticalCount = threatSeverity['critical'] ?? 0;
+  const highCount = threatSeverity['high'] ?? 0;
+  const mediumCount = threatSeverity['medium'] ?? 0;
   const blockedCount = byOutcome['blocked'] ?? 0;
   let score = 100;
   score -= criticalCount * 15;
@@ -715,7 +722,7 @@ async function buildWeeklyReport(
       score,
       grade,
       factors: [
-        { name: 'severity', score: Math.max(0, 100 - criticalCount * 15 - highCount * 8), weight: 0.4, detail: `${criticalCount} critical, ${highCount} high` },
+        { name: 'severity', score: Math.max(0, 100 - criticalCount * 15 - highCount * 8), weight: 0.4, detail: `${criticalCount} critical, ${highCount} high (threats only)` },
         { name: 'enforcement', score: blockedCount > 0 ? 80 : 50, weight: 0.3, detail: `${blockedCount} blocked` },
         { name: 'coverage', score: Object.keys(byAgent).length > 0 ? 70 : 30, weight: 0.3, detail: `${Object.keys(byAgent).length} agents monitored` },
       ],
