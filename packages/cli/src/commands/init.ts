@@ -90,7 +90,7 @@ export async function init(options: InitOptions): Promise<number> {
   const { score, grade } = calculateTrustScore(credsBySeverity, checks, targetDir);
 
   // 6. Generate next steps
-  const nextSteps = generateNextSteps(credentialMatches.length, credsBySeverity, checks);
+  const nextSteps = generateNextSteps(credentialMatches.length, credsBySeverity, checks, project.type);
 
   // 6.5. Compute posture score from Shield product detection
   const shieldStatus = getShieldStatus(targetDir);
@@ -111,8 +111,10 @@ export async function init(options: InitOptions): Promise<number> {
     : 'SECURE';
 
   // 6.6. Write shield events for posture and credential findings
+  // Events are written to the project-local .opena2a/shield/ when available,
+  // falling back to the global ~/.opena2a/shield/.
   try {
-    getShieldDir();
+    getShieldDir(targetDir);
     writeEvent({
       source: 'shield',
       category: 'shield.posture',
@@ -126,7 +128,7 @@ export async function init(options: InitOptions): Promise<number> {
       orgId: null,
       managed: false,
       agentId: null,
-    });
+    }, targetDir);
     for (const cred of credentialMatches) {
       writeEvent({
         source: 'shield',
@@ -141,7 +143,7 @@ export async function init(options: InitOptions): Promise<number> {
         orgId: null,
         managed: false,
         agentId: null,
-      });
+      }, targetDir);
     }
   } catch {
     // Shield event writing is best-effort
@@ -339,6 +341,7 @@ function generateNextSteps(
   credCount: number,
   credsBySeverity: Record<string, number>,
   checks: HygieneCheck[],
+  projectType?: string,
 ): NextStep[] {
   const steps: NextStep[] = [];
 
@@ -364,10 +367,13 @@ function generateNextSteps(
   // No .gitignore
   const gitignoreCheck = checks.find(c => c.label === '.gitignore');
   if (gitignoreCheck?.status !== 'pass') {
+    const gitignoreTemplate = projectType === 'python' ? 'python'
+      : projectType === 'go' ? 'go'
+      : 'node';
     steps.push({
       severity: 'high',
       description: 'Create .gitignore',
-      command: 'npx gitignore node',
+      command: `npx gitignore ${gitignoreTemplate}`,
     });
   }
 

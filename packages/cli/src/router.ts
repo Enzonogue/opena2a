@@ -1,6 +1,7 @@
 import { createAdapter } from './adapters/index.js';
-import type { RunOptions } from './adapters/types.js';
+import type { AdapterConfig, RunOptions } from './adapters/types.js';
 import { protect } from './commands/protect.js';
+import { isContributeEnabled, getRegistryUrl, submitScanReport, recordScanAndMaybePrompt } from './util/report-submission.js';
 
 export type InputType = 'subcommand' | 'search' | 'context' | 'natural' | 'guided';
 
@@ -89,7 +90,9 @@ export async function dispatchCommand(
     });
   }
 
-  // Handle 'init' directly (not adapter-based)
+  // 'init' is registered directly in Commander (index.ts).
+  // Only dispatch here when called from guided wizard / natural language,
+  // which bypass Commander parsing.
   if (command === 'init') {
     const { init } = await import('./commands/init.js');
     return init({
@@ -136,7 +139,7 @@ export async function dispatchCommand(
 
   const intent = INTENT_MAP[command];
   const adapterName = intent?.adapter ?? command;
-  const adapterArgs = intent ? [...intent.defaultArgs, ...args] : args;
+  let adapterArgs = intent ? [...intent.defaultArgs, ...args] : args;
 
   const adapter = createAdapter(adapterName);
   if (!adapter) {
@@ -145,10 +148,16 @@ export async function dispatchCommand(
     return 1;
   }
 
+  // Prepend subcommand if the adapter config specifies one (e.g. broker, dlp)
+  if (adapter.config.subcommand) {
+    adapterArgs = [adapter.config.subcommand, ...adapterArgs];
+  }
+
   const available = await adapter.isAvailable();
   if (!available) {
     process.stderr.write(`${adapter.config.name} is not installed.\n`);
-    process.stderr.write(`Install: npm install -g ${adapter.config.packageName ?? adapter.config.command ?? adapter.config.name}\n`);
+    const installHint = getInstallHint(adapter.config);
+    process.stderr.write(`Install: ${installHint}\n`);
     return 1;
   }
 
@@ -158,5 +167,41 @@ export async function dispatchCommand(
     cwd: globalOptions.cwd ?? process.cwd(),
   });
 
+  // Community contribution: submit scan reports when contribute is enabled
+  // This is best-effort and non-blocking -- failures are silently ignored.
+  if (globalOptions.contribute || await isContributeEnabled()) {
+    try {
+      const registryUrl = await getRegistryUrl();
+      // Parse stdout for scan report JSON (adapters that produce scan results)
+      if (result.stdout && (adapterName === 'scan' || adapterName === 'benchmark')) {
+        try {
+          const report = JSON.parse(result.stdout);
+          if (report.overallScore !== undefined || report.findings) {
+            await submitScanReport(registryUrl, report, globalOptions.verbose);
+          }
+        } catch {
+          // stdout wasn't valid scan report JSON -- that's fine
+        }
+      }
+      await recordScanAndMaybePrompt();
+    } catch {
+      // Non-critical -- never block on contribution failures
+    }
+  }
+
   return result.exitCode;
+}
+
+function getInstallHint(config: AdapterConfig): string {
+  switch (config.method) {
+    case 'docker':
+      return `docker pull ${config.image ?? config.name}`;
+    case 'python':
+      return `pip install ${config.pythonModule ?? config.name}`;
+    case 'spawn':
+      return `npm install -g ${config.command ?? config.name}`;
+    case 'import':
+    default:
+      return `npm install -g ${config.packageName ?? config.name}`;
+  }
 }

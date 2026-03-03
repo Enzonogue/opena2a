@@ -5,7 +5,7 @@ import { printBanner, printCompact } from './branding.js';
 import { classifyInput, dispatchCommand } from './router.js';
 import { handleSearch } from './semantic/index.js';
 import { handleContext } from './contextual/index.js';
-import { handleNaturalLanguage } from './natural/index.js';
+import { handleNaturalLanguage, matchIntent } from './natural/index.js';
 import { runWizard } from './guided/wizard.js';
 import { ADAPTER_REGISTRY } from './adapters/registry.js';
 import { getVersion } from './util/version.js';
@@ -36,7 +36,8 @@ Smart Features:
   $ opena2a                      Interactive guided mode (no args)
   $ opena2a ~<query>             Search commands (e.g. opena2a ~drift)
   $ opena2a ?                    Get smart recommendations for your project
-  $ opena2a "scan for secrets"   Natural language command matching
+  $ opena2a find secrets         Natural language command matching
+  $ opena2a detect credentials   Natural language command matching
 
 Learn more: https://opena2a.org/docs`);
 
@@ -44,10 +45,10 @@ Learn more: https://opena2a.org/docs`);
   for (const [name, config] of Object.entries(ADAPTER_REGISTRY)) {
     program
       .command(name)
+      .argument('[args...]', 'Subcommand and arguments')
       .description(config.description)
       .allowUnknownOption(true)
-      .action(async (_opts, cmd) => {
-        const args = cmd.args ?? [];
+      .action(async (args: string[], _opts, cmd) => {
         const globalOpts = program.opts();
         const exitCode = await dispatchCommand(name, args, {
           verbose: globalOpts.verbose,
@@ -62,18 +63,18 @@ Learn more: https://opena2a.org/docs`);
 
   // Protect command (direct, not adapter-based)
   program
-    .command('protect')
+    .command('protect [directory]')
     .description('Detect and migrate credentials to encrypted vault')
     .option('--dry-run', 'Show what would change without modifying files')
     .option('--report <path>', 'Write interactive HTML report')
     .option('--skip-verify', 'Skip verification re-scan')
     .option('--skip-liveness', 'Skip drift liveness verification (offline/CI)')
     .option('--dir <path>', 'Target directory')
-    .action(async (opts) => {
+    .action(async (directory: string | undefined, opts) => {
       const { protect: runProtect } = await import('./commands/protect.js');
       const globalOpts = program.opts();
       process.exitCode = await runProtect({
-        targetDir: opts.dir ?? process.cwd(),
+        targetDir: opts.dir ?? directory ?? process.cwd(),
         dryRun: opts.dryRun,
         verbose: globalOpts.verbose,
         ci: globalOpts.ci,
@@ -108,14 +109,14 @@ Learn more: https://opena2a.org/docs`);
 
   // Init command (direct, not adapter-based)
   program
-    .command('init')
+    .command('init [directory]')
     .description('Initialize OpenA2A security in your project')
     .option('--dir <path>', 'Target directory')
-    .action(async (opts) => {
+    .action(async (directory: string | undefined, opts) => {
       const { init } = await import('./commands/init.js');
       const globalOpts = program.opts();
       process.exitCode = await init({
-        targetDir: opts.dir,
+        targetDir: opts.dir ?? directory,
         ci: globalOpts.ci,
         format: globalOpts.format,
         verbose: globalOpts.verbose,
@@ -175,6 +176,7 @@ Learn more: https://opena2a.org/docs`);
   program
     .command('shield <subcommand> [args...]')
     .description('Unified security orchestration (init|status|log|selfcheck|policy|evaluate|recover|report|monitor|session|baseline|suggest|explain|triage)')
+    .allowUnknownOption(true)
     .option('--dir <path>', 'Target directory')
     .option('--agent <name>', 'Agent name filter')
     .option('--count <n>', 'Event count (log)')
@@ -202,17 +204,17 @@ Learn more: https://opena2a.org/docs`);
 
   // Review command (unified security review)
   program
-    .command('review')
+    .command('review [directory]')
     .description('Run all security checks and open unified HTML dashboard')
     .option('--dir <path>', 'Target directory')
     .option('--report <path>', 'Output path for HTML report')
     .option('--no-open', 'Do not auto-open report in browser')
     .option('--skip-hma', 'Skip HMA scan even if available')
-    .action(async (opts) => {
+    .action(async (directory: string | undefined, opts) => {
       const { review } = await import('./commands/review.js');
       const globalOpts = program.opts();
       process.exitCode = await review({
-        targetDir: opts.dir ?? process.cwd(),
+        targetDir: opts.dir ?? directory ?? process.cwd(),
         reportPath: opts.report,
         autoOpen: opts.open !== false,
         skipHma: opts.skipHma,
@@ -382,6 +384,31 @@ Valid actions:
       process.exitCode = exitCode;
     }
     return;
+  }
+
+  // NL fallback: multi-word input where the first word is NOT a known command.
+  // This handles "scan for secrets" when the shell strips quotes from
+  // `opena2a "scan for secrets"`, yielding argv ['scan', 'for', 'secrets'].
+  // We only try this when the first word is NOT a registered command, so
+  // valid commands like `opena2a scan secure` always reach Commander.
+  const KNOWN_COMMANDS = [
+    ...Object.keys(ADAPTER_REGISTRY),
+    'init', 'protect', 'guard', 'runtime', 'shield', 'review',
+    'config', 'self-register', 'verify', 'baselines',
+    'check', 'status', 'publish',
+  ];
+  if (!isFlag && rawArgs.length >= 2 && !KNOWN_COMMANDS.includes(rawArgs[0])) {
+    const fullPhrase = rawArgs.join(' ');
+    const nlMatch = matchIntent(fullPhrase);
+    if (nlMatch) {
+      const command = await handleNaturalLanguage(fullPhrase);
+      if (command) {
+        const parts = command.replace('opena2a ', '').split(' ');
+        const exitCode = await dispatchCommand(parts[0], parts.slice(1), program.opts());
+        process.exitCode = exitCode;
+      }
+      return;
+    }
   }
 
   // Let Commander parse known subcommands and flags
