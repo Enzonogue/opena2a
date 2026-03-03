@@ -144,8 +144,14 @@ export async function guard(options: GuardOptions): Promise<number> {
       const action = options.args?.[0] ?? '';
       return guardHook(action, targetDir);
     }
-    case 'resign': return guardResign(targetDir, options);
-    case 'snapshot': return guardSnapshot(targetDir, options);
+    case 'resign': {
+      const { guardResign } = await import('./guard-snapshots.js');
+      return guardResign(targetDir, options);
+    }
+    case 'snapshot': {
+      const { guardSnapshot } = await import('./guard-snapshots.js');
+      return guardSnapshot(targetDir, options);
+    }
     default:
       process.stderr.write(red(`Unknown subcommand: ${options.subcommand}\n`));
       process.stderr.write('Usage: opena2a guard <sign|verify|status|watch|diff|policy|hook|resign|snapshot>\n');
