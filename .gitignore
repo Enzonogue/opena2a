@@ -8,3 +8,9 @@ dist/
 .env.*
 .pre-push-review-passed
 coverage/
+
+# Secrets and credentials
+secrets.json
+*.pem
+*.key
+*.p12
