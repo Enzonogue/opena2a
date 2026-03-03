@@ -11,11 +11,13 @@
  * - recover:   Exit lockdown mode
  * - report:    Generate a security posture report
  * - session:   Show current AI coding assistant session identity
+ * - baseline:  View adaptive enforcement baselines for agents
  * - suggest:   LLM-powered policy suggestions from observed behavior
  * - explain:   LLM-powered anomaly explanations for events
  * - triage:    LLM-powered incident classification and response
  */
 
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { EventSeverity } from '../shield/types.js';
 import { bold, dim, gray, green, yellow, red, cyan } from '../util/colors.js';
@@ -24,6 +26,7 @@ import { bold, dim, gray, green, yellow, red, cyan } from '../util/colors.js';
 
 export interface ShieldOptions {
   subcommand: string;
+  args?: string[];
   dir?: string;
   agent?: string;
   count?: string;
@@ -38,6 +41,7 @@ export interface ShieldOptions {
   ci?: boolean;
   format?: string;
   verbose?: boolean;
+  report?: string;
 }
 
 // --- Core dispatcher ---
@@ -63,6 +67,8 @@ export async function shield(options: ShieldOptions): Promise<number> {
       return handleReport(options);
     case 'session':
       return handleSession(options);
+    case 'baseline':
+      return handleBaseline(options);
     case 'suggest':
       return handleSuggest(options);
     case 'explain':
@@ -73,7 +79,7 @@ export async function shield(options: ShieldOptions): Promise<number> {
       return handleMonitor(options);
     default:
       process.stderr.write(red(`Unknown subcommand: ${options.subcommand}\n`));
-      process.stderr.write('Usage: opena2a shield <init|status|log|selfcheck|policy|evaluate|recover|report|monitor|session|suggest|explain|triage>\n');
+      process.stderr.write('Usage: opena2a shield <init|status|log|selfcheck|policy|evaluate|recover|report|monitor|session|baseline|suggest|explain|triage>\n');
       return 1;
   }
 }
@@ -213,6 +219,7 @@ async function handlePolicy(options: ShieldOptions): Promise<number> {
 
 async function handleEvaluate(options: ShieldOptions): Promise<number> {
   const { loadPolicy, evaluatePolicy } = await import('../shield/policy.js');
+  const { writeEvent } = await import('../shield/events.js');
   const isJson = options.format === 'json';
 
   const policy = loadPolicy(options.dir);
@@ -226,17 +233,69 @@ async function handleEvaluate(options: ShieldOptions): Promise<number> {
     return 1;
   }
 
-  const category = options.category ?? 'processes';
+  // Determine the command string from positional args or fall back to category-based evaluation.
+  const commandString = options.args && options.args.length > 0
+    ? options.args.join(' ')
+    : null;
+
   const agent = options.agent ?? null;
-  const target = '';
+  let category: string;
+  let target: string;
+
+  if (commandString) {
+    // Shell hook mode: parse the command to extract the binary name (first word).
+    // Handle pipes, subshells, and quoted strings by taking the first token.
+    const trimmed = commandString.trim();
+    const firstWord = trimmed.split(/[\s|;&]/)[0] ?? trimmed;
+    category = 'processes';
+    target = firstWord;
+  } else {
+    // Explicit category mode (used by direct API calls)
+    category = options.category ?? 'processes';
+    target = '';
+  }
 
   const decision = evaluatePolicy(policy, agent, category, target);
 
+  // Write enforcement events for non-allowed decisions
+  if (decision.outcome === 'blocked') {
+    writeEvent({
+      source: 'shield',
+      category: 'enforcement',
+      severity: 'high',
+      agent,
+      sessionId: null,
+      action: 'command.blocked',
+      target: commandString ?? target,
+      outcome: 'blocked',
+      detail: { rule: decision.rule, mode: policy.mode },
+      orgId: null,
+      managed: false,
+      agentId: null,
+    });
+    process.stderr.write(`[shield] blocked: ${commandString ?? target} (rule: ${decision.rule})\n`);
+  } else if (decision.outcome === 'monitored') {
+    writeEvent({
+      source: 'shield',
+      category: 'enforcement',
+      severity: 'medium',
+      agent,
+      sessionId: null,
+      action: 'command.monitored',
+      target: commandString ?? target,
+      outcome: 'monitored',
+      detail: { rule: decision.rule, mode: policy.mode },
+      orgId: null,
+      managed: false,
+      agentId: null,
+    });
+  }
+
   if (isJson) {
     process.stdout.write(JSON.stringify(decision, null, 2) + '\n');
-  } else {
+  } else if (decision.outcome !== 'blocked') {
+    // Only print non-blocked outcomes to stdout (blocked warning goes to stderr above)
     const outcomeLabel = decision.outcome === 'allowed' ? green('ALLOWED')
-      : decision.outcome === 'blocked' ? red('BLOCKED')
       : yellow('MONITORED');
     process.stdout.write(`${outcomeLabel}  rule=${decision.rule}\n`);
   }
@@ -339,6 +398,22 @@ async function handleReport(options: ShieldOptions): Promise<number> {
 
   const topAgents = topN(byAgent, 10);
   const topActions = topN(byAction, 10);
+
+  // --- HTML report output ---
+  if (options.report) {
+    const weeklyReport = await buildWeeklyReport(events, since, bySeverity, byOutcome, byAgent, topActions);
+    let narrative: import('../shield/types.js').ReportNarrative | null = null;
+    if (options.analyze) {
+      const { generateNarrative } = await import('../shield/llm.js');
+      narrative = await generateNarrative(weeklyReport);
+    }
+    const { generateShieldHtmlReport } = await import('../shield/report-html.js');
+    const html = generateShieldHtmlReport(weeklyReport, narrative);
+    const reportPath = path.resolve(options.report);
+    fs.writeFileSync(reportPath, html, 'utf-8');
+    process.stdout.write(`Report written to ${reportPath}\n`);
+    return 0;
+  }
 
   if (isJson) {
     const data: Record<string, unknown> = {
@@ -450,18 +525,16 @@ async function handleReport(options: ShieldOptions): Promise<number> {
 }
 
 /**
- * Build a WeeklyReport from aggregated event data and call generateNarrative().
- * Returns the narrative or null if LLM is unavailable.
+ * Build a WeeklyReport from aggregated event data.
  */
-async function buildNarrative(
+async function buildWeeklyReport(
   events: import('../shield/types.js').ShieldEvent[],
   since: string,
   bySeverity: Record<string, number>,
   byOutcome: Record<string, number>,
   byAgent: Record<string, number>,
   topActions: { name: string; count: number }[],
-): Promise<import('../shield/types.js').ReportNarrative | null> {
-  const { generateNarrative } = await import('../shield/llm.js');
+): Promise<import('../shield/types.js').WeeklyReport> {
   const { getARPStats } = await import('../shield/arp-bridge.js');
   const { hostname } = await import('node:os');
 
@@ -646,6 +719,23 @@ async function buildNarrative(
     },
   };
 
+  return report;
+}
+
+/**
+ * Build a WeeklyReport and call generateNarrative().
+ * Returns the narrative or null if LLM is unavailable.
+ */
+async function buildNarrative(
+  events: import('../shield/types.js').ShieldEvent[],
+  since: string,
+  bySeverity: Record<string, number>,
+  byOutcome: Record<string, number>,
+  byAgent: Record<string, number>,
+  topActions: { name: string; count: number }[],
+): Promise<import('../shield/types.js').ReportNarrative | null> {
+  const { generateNarrative } = await import('../shield/llm.js');
+  const report = await buildWeeklyReport(events, since, bySeverity, byOutcome, byAgent, topActions);
   return generateNarrative(report);
 }
 
@@ -770,6 +860,148 @@ async function handleSession(options: ShieldOptions): Promise<number> {
 
   process.stdout.write(gray('-'.repeat(40)) + '\n');
   return 0;
+}
+
+// --- Baseline ---
+
+async function handleBaseline(options: ShieldOptions): Promise<number> {
+  const { listBaselines, getBaseline, computeStability, checkPhaseTransition } =
+    await import('../shield/baselines.js');
+  const isJson = options.format === 'json';
+
+  if (options.agent) {
+    // Detailed view for a single agent
+    const baseline = getBaseline(options.agent);
+    const stability = computeStability(baseline);
+    const transition = checkPhaseTransition(baseline);
+
+    if (isJson) {
+      process.stdout.write(JSON.stringify({
+        ...baseline,
+        stabilityScore: stability,
+        transition,
+      }, null, 2) + '\n');
+      return 0;
+    }
+
+    process.stdout.write(bold('Agent Baseline') + '\n');
+    process.stdout.write(gray('-'.repeat(50)) + '\n');
+    process.stdout.write(`  Agent:          ${cyan(baseline.agent)}\n`);
+    process.stdout.write(`  Phase:          ${phaseColor(baseline.phase)}\n`);
+    process.stdout.write(`  Stability:      ${stabilityBar(stability)}\n`);
+    process.stdout.write(`  Total actions:  ${String(baseline.totalActions)}\n`);
+    process.stdout.write(`  Total sessions: ${String(baseline.totalSessions)}\n`);
+    process.stdout.write(`  Observed since: ${dim(baseline.observationStart)}\n`);
+    process.stdout.write(`  Last activity:  ${dim(baseline.observationEnd)}\n`);
+
+    if (baseline.lastNewBehaviorAt) {
+      process.stdout.write(`  Last new behavior: ${dim(baseline.lastNewBehaviorAt)}\n`);
+    }
+
+    process.stdout.write('\n');
+    process.stdout.write(bold('  Observed Behavior') + '\n');
+
+    const buckets: [string, Record<string, number>][] = [
+      ['Processes', baseline.observed.processes],
+      ['Credentials', baseline.observed.credentials],
+      ['Filesystem', baseline.observed.filesystemPaths],
+      ['Network', baseline.observed.networkHosts],
+      ['MCP Servers', baseline.observed.mcpServers],
+    ];
+
+    for (const [label, entries] of buckets) {
+      const keys = Object.keys(entries);
+      if (keys.length === 0) continue;
+      process.stdout.write(`    ${label} (${keys.length}):\n`);
+      const sorted = Object.entries(entries).sort((a, b) => b[1] - a[1]);
+      for (const [name, count] of sorted.slice(0, 10)) {
+        process.stdout.write(`      ${name.padEnd(40)} ${dim(String(count) + 'x')}\n`);
+      }
+      if (sorted.length > 10) {
+        process.stdout.write(dim(`      ... and ${sorted.length - 10} more\n`));
+      }
+    }
+
+    process.stdout.write('\n');
+    process.stdout.write(`  Transition: ${dim(transition.reason)}\n`);
+
+    if (baseline.recommended) {
+      process.stdout.write('\n');
+      process.stdout.write(bold('  Recommended Policy') + '\n');
+      if (baseline.recommended.processes?.allow?.length) {
+        process.stdout.write(`    Allow processes: ${baseline.recommended.processes.allow.length}\n`);
+      }
+      if (baseline.recommended.credentials?.allow?.length) {
+        process.stdout.write(`    Allow credentials: ${baseline.recommended.credentials.allow.length}\n`);
+      }
+      if (baseline.recommended.network?.allow?.length) {
+        process.stdout.write(`    Allow network: ${baseline.recommended.network.allow.length}\n`);
+      }
+    }
+
+    process.stdout.write(gray('-'.repeat(50)) + '\n');
+    return 0;
+  }
+
+  // List all baselines
+  const baselines = listBaselines();
+
+  if (baselines.length === 0) {
+    if (isJson) {
+      process.stdout.write(JSON.stringify([], null, 2) + '\n');
+    } else {
+      process.stdout.write(dim('No baselines found. Shield will create baselines as agent activity is observed.\n'));
+    }
+    return 0;
+  }
+
+  if (isJson) {
+    process.stdout.write(JSON.stringify(baselines, null, 2) + '\n');
+    return 0;
+  }
+
+  process.stdout.write(bold('Agent Baselines') + '\n');
+  process.stdout.write(gray('-'.repeat(70)) + '\n');
+  process.stdout.write(
+    `  ${'Agent'.padEnd(20)} ${'Phase'.padEnd(10)} ${'Stability'.padEnd(12)} ${'Actions'.padEnd(10)} Sessions\n`,
+  );
+  process.stdout.write(gray('-'.repeat(70)) + '\n');
+
+  for (const bl of baselines) {
+    process.stdout.write(
+      `  ${bl.agent.padEnd(20)} ${phaseColor(bl.phase).padEnd(10 + colorPadding(bl.phase))} ` +
+      `${bl.stabilityScore.toFixed(2).padEnd(12)} ` +
+      `${String(bl.totalActions).padEnd(10)} ` +
+      `${String(bl.totalSessions)}\n`,
+    );
+  }
+
+  process.stdout.write(gray('-'.repeat(70)) + '\n');
+  return 0;
+}
+
+function phaseColor(phase: string): string {
+  switch (phase) {
+    case 'learn': return cyan(phase);
+    case 'suggest': return yellow(phase);
+    case 'protect': return green(phase);
+    default: return dim(phase);
+  }
+}
+
+/** ANSI codes add invisible characters; compute extra length for padding. */
+function colorPadding(phase: string): number {
+  return phaseColor(phase).length - phase.length;
+}
+
+function stabilityBar(score: number): string {
+  const filled = Math.round(score * 10);
+  const empty = 10 - filled;
+  const bar = '#'.repeat(filled) + '-'.repeat(empty);
+  const label = (score * 100).toFixed(0) + '%';
+  if (score >= 0.8) return green(`[${bar}] ${label}`);
+  if (score >= 0.5) return yellow(`[${bar}] ${label}`);
+  return dim(`[${bar}] ${label}`);
 }
 
 // --- LLM intelligence handlers ---

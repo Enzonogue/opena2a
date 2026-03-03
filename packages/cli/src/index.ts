@@ -128,6 +128,7 @@ Learn more: https://opena2a.org/docs`);
     .description('Config file integrity signing and verification (sign|verify|status)')
     .option('--files <files...>', 'Specific files to guard')
     .option('--dir <path>', 'Target directory')
+    .option('--enforce', 'Quarantine on tampering (exit code 3)')
     .action(async (subcommand: string, opts) => {
       const { guard } = await import('./commands/guard.js');
       const globalOpts = program.opts();
@@ -138,6 +139,7 @@ Learn more: https://opena2a.org/docs`);
         ci: globalOpts.ci,
         format: globalOpts.format,
         verbose: globalOpts.verbose,
+        enforce: opts.enforce,
       });
     });
 
@@ -166,8 +168,8 @@ Learn more: https://opena2a.org/docs`);
 
   // Shield command (unified security orchestration)
   program
-    .command('shield <subcommand>')
-    .description('Unified security orchestration (init|status|log|selfcheck|policy|evaluate|recover|report|monitor|session|suggest|explain|triage)')
+    .command('shield <subcommand> [args...]')
+    .description('Unified security orchestration (init|status|log|selfcheck|policy|evaluate|recover|report|monitor|session|baseline|suggest|explain|triage)')
     .option('--dir <path>', 'Target directory')
     .option('--agent <name>', 'Agent name filter')
     .option('--count <n>', 'Event count (log)')
@@ -179,11 +181,13 @@ Learn more: https://opena2a.org/docs`);
     .option('--reset', 'Force exit lockdown')
     .option('--forensic', 'Forensic mode')
     .option('--analyze', 'Enable LLM analysis')
-    .action(async (subcommand: string, opts) => {
+    .option('--report <path>', 'Write HTML posture report to file')
+    .action(async (subcommand: string, args: string[], opts) => {
       const { shield } = await import('./commands/shield.js');
       const globalOpts = program.opts();
       process.exitCode = await shield({
         subcommand,
+        args,
         ...opts,
         ci: globalOpts.ci,
         format: globalOpts.format,
