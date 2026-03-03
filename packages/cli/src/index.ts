@@ -125,19 +125,21 @@ Learn more: https://opena2a.org/docs`);
   // Guard command (ConfigGuard)
   program
     .command('guard <subcommand>')
-    .description('Config file integrity signing and verification (sign|verify|status)')
+    .description('Config file integrity signing and verification (sign|verify|status|watch|diff)')
     .option('--files <files...>', 'Specific files to guard')
     .option('--dir <path>', 'Target directory')
+    .option('--enforce', 'Quarantine on tampering (exit code 3)')
     .action(async (subcommand: string, opts) => {
       const { guard } = await import('./commands/guard.js');
       const globalOpts = program.opts();
       process.exitCode = await guard({
-        subcommand: subcommand as 'sign' | 'verify' | 'status',
+        subcommand: subcommand as 'sign' | 'verify' | 'status' | 'watch' | 'diff',
         files: opts.files,
         targetDir: opts.dir,
         ci: globalOpts.ci,
         format: globalOpts.format,
         verbose: globalOpts.verbose,
+        enforce: opts.enforce,
       });
     });
 
@@ -179,6 +181,7 @@ Learn more: https://opena2a.org/docs`);
     .option('--reset', 'Force exit lockdown')
     .option('--forensic', 'Forensic mode')
     .option('--analyze', 'Enable LLM analysis')
+    .option('--report <path>', 'Write HTML posture report to file')
     .action(async (subcommand: string, args: string[], opts) => {
       const { shield } = await import('./commands/shield.js');
       const globalOpts = program.opts();

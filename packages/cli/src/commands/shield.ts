@@ -17,6 +17,7 @@
  * - triage:    LLM-powered incident classification and response
  */
 
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { EventSeverity } from '../shield/types.js';
 import { bold, dim, gray, green, yellow, red, cyan } from '../util/colors.js';
@@ -40,6 +41,7 @@ export interface ShieldOptions {
   ci?: boolean;
   format?: string;
   verbose?: boolean;
+  report?: string;
 }
 
 // --- Core dispatcher ---
@@ -397,6 +399,22 @@ async function handleReport(options: ShieldOptions): Promise<number> {
   const topAgents = topN(byAgent, 10);
   const topActions = topN(byAction, 10);
 
+  // --- HTML report output ---
+  if (options.report) {
+    const weeklyReport = await buildWeeklyReport(events, since, bySeverity, byOutcome, byAgent, topActions);
+    let narrative: import('../shield/types.js').ReportNarrative | null = null;
+    if (options.analyze) {
+      const { generateNarrative } = await import('../shield/llm.js');
+      narrative = await generateNarrative(weeklyReport);
+    }
+    const { generateShieldHtmlReport } = await import('../shield/report-html.js');
+    const html = generateShieldHtmlReport(weeklyReport, narrative);
+    const reportPath = path.resolve(options.report);
+    fs.writeFileSync(reportPath, html, 'utf-8');
+    process.stdout.write(`Report written to ${reportPath}\n`);
+    return 0;
+  }
+
   if (isJson) {
     const data: Record<string, unknown> = {
       periodSince: since,
@@ -507,18 +525,16 @@ async function handleReport(options: ShieldOptions): Promise<number> {
 }
 
 /**
- * Build a WeeklyReport from aggregated event data and call generateNarrative().
- * Returns the narrative or null if LLM is unavailable.
+ * Build a WeeklyReport from aggregated event data.
  */
-async function buildNarrative(
+async function buildWeeklyReport(
   events: import('../shield/types.js').ShieldEvent[],
   since: string,
   bySeverity: Record<string, number>,
   byOutcome: Record<string, number>,
   byAgent: Record<string, number>,
   topActions: { name: string; count: number }[],
-): Promise<import('../shield/types.js').ReportNarrative | null> {
-  const { generateNarrative } = await import('../shield/llm.js');
+): Promise<import('../shield/types.js').WeeklyReport> {
   const { getARPStats } = await import('../shield/arp-bridge.js');
   const { hostname } = await import('node:os');
 
@@ -703,6 +719,23 @@ async function buildNarrative(
     },
   };
 
+  return report;
+}
+
+/**
+ * Build a WeeklyReport and call generateNarrative().
+ * Returns the narrative or null if LLM is unavailable.
+ */
+async function buildNarrative(
+  events: import('../shield/types.js').ShieldEvent[],
+  since: string,
+  bySeverity: Record<string, number>,
+  byOutcome: Record<string, number>,
+  byAgent: Record<string, number>,
+  topActions: { name: string; count: number }[],
+): Promise<import('../shield/types.js').ReportNarrative | null> {
+  const { generateNarrative } = await import('../shield/llm.js');
+  const report = await buildWeeklyReport(events, since, bySeverity, byOutcome, byAgent, topActions);
   return generateNarrative(report);
 }
 
