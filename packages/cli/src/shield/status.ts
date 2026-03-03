@@ -94,18 +94,20 @@ function detectProduct(name: string): ProductStatus {
     }
 
     case 'ConfigGuard': {
-      const sigDir = join(process.cwd(), '.opena2a', 'signatures');
-      const hasSigs = existsSync(sigDir);
+      const sigFile = join(process.cwd(), '.opena2a', 'guard', 'signatures.json');
       let fileCount = 0;
-      if (hasSigs) {
-        try { fileCount = readdirSync(sigDir).length; } catch { /* ok */ }
+      if (existsSync(sigFile)) {
+        try {
+          const store = JSON.parse(readFileSync(sigFile, 'utf-8'));
+          fileCount = Array.isArray(store.signatures) ? store.signatures.length : 0;
+        } catch { /* ok */ }
       }
       return {
         name: 'ConfigGuard',
         installed: true, // Built into CLI
-        active: hasSigs && fileCount > 0,
+        active: fileCount > 0,
         version: null,
-        keyMetric: hasSigs ? `${fileCount} files signed` : 'no signatures',
+        keyMetric: fileCount > 0 ? `${fileCount} files signed` : 'no signatures',
       };
     }
 
