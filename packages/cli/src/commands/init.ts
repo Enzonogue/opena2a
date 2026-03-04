@@ -967,8 +967,12 @@ function printReport(report: InitReport, elapsed: string, verbose?: boolean): vo
     process.stdout.write(bold('  Findings') + '\n');
     process.stdout.write(gray('  ' + '-'.repeat(47)) + '\n');
 
-    const maxFindings = verbose ? report.findings.length : 5;
-    const displayFindings = report.findings.slice(0, maxFindings);
+    // Always show all critical + high; truncate medium/low at 2 (unless verbose)
+    const important = report.findings.filter(f => f.severity === 'critical' || f.severity === 'high');
+    const minor     = report.findings.filter(f => f.severity !== 'critical' && f.severity !== 'high');
+    const maxMinor  = verbose ? minor.length : 2;
+    const displayFindings = [...important, ...minor.slice(0, maxMinor)];
+    const hiddenCount = verbose ? 0 : minor.length - maxMinor;
 
     for (const finding of displayFindings) {
       const sevPad = finding.severity === 'critical' ? ''
@@ -1014,9 +1018,8 @@ function printReport(report: InitReport, elapsed: string, verbose?: boolean): vo
       process.stdout.write('\n');
     }
 
-    if (!verbose && report.findings.length > maxFindings) {
-      const remaining = report.findings.length - maxFindings;
-      process.stdout.write(dim(`  [+${remaining} more finding${remaining === 1 ? '' : 's'} -- run with --verbose to see all]`) + '\n');
+    if (hiddenCount > 0) {
+      process.stdout.write(dim(`  [+${hiddenCount} lower-severity finding${hiddenCount === 1 ? '' : 's'} -- run with --verbose to see all]`) + '\n');
       process.stdout.write('\n');
     }
   } else {

@@ -80,7 +80,7 @@ export const CREDENTIAL_PATTERNS: CredentialPattern[] = [
   {
     id: 'CRED-005',
     title: 'AWS Secret Access Key',
-    pattern: /(?:AWS_SECRET_ACCESS_KEY|aws[_-]?secret[_-]?access[_-]?key)\s*[:=]\s*['"]?([A-Za-z0-9+\/]{40})['"]?/gi,
+    pattern: /(?:AWS_SECRET_ACCESS_KEY|aws[_-]?secret[_-]?access[_-]?key|secretAccessKey|SecretAccessKey)\s*[:=]\s*['"]?([A-Za-z0-9+\/]{40})['"]?/g,
     envVarPrefix: 'AWS_SECRET_ACCESS_KEY',
     severity: 'critical',
     explanation: 'AWS Secret Access Key hardcoded in source. Combined with an Access Key ID, this grants full programmatic AWS access to all authorized services.',
