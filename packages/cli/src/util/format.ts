@@ -1,8 +1,8 @@
-import { bold, red, yellow, green, cyan, gray } from './colors.js';
+import { bold, red, yellow, green, cyan, gray, brightRed } from './colors.js';
 
 export function severityColor(severity: string): (text: string) => string {
   switch (severity) {
-    case 'critical': return (text: string) => bold(red(text));
+    case 'critical': return brightRed;
     case 'high':     return red;
     case 'medium':   return yellow;
     case 'low':      return green;

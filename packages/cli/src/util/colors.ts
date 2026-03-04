@@ -13,3 +13,4 @@ export const yellow = wrap(33, 39);
 export const blue = wrap(34, 39);
 export const cyan = wrap(36, 39);
 export const gray = wrap(90, 39);
+export const brightRed = wrap(91, 39);
