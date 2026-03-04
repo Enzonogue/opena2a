@@ -25,7 +25,7 @@ describe('input classifier', () => {
   });
 
   it('classifies known commands as subcommand', () => {
-    for (const cmd of ['scan', 'secrets', 'runtime', 'benchmark', 'init', 'protect']) {
+    for (const cmd of ['scan', 'secrets', 'runtime', 'benchmark', 'init', 'protect', 'scan-soul', 'harden-soul']) {
       const result = classifyInput([cmd, 'arg1']);
       expect(result.type).toBe('subcommand');
       expect(result.value).toBe(cmd);
@@ -53,9 +53,9 @@ describe('input classifier', () => {
 
 describe('adapter registry', () => {
   it('has all expected adapters', () => {
-    // guard and runtime are now handled directly (not adapter-based)
+    // guard, runtime, and identity are now handled directly (not adapter-based)
     const expected = ['scan', 'secrets', 'benchmark', 'registry',
-      'train', 'crypto', 'identity', 'broker'];
+      'train', 'crypto', 'broker', 'scan-soul', 'harden-soul'];
     for (const name of expected) {
       expect(ADAPTER_REGISTRY[name]).toBeDefined();
     }

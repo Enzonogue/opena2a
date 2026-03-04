@@ -20,6 +20,18 @@ export const ADAPTER_REGISTRY: Record<string, AdapterConfig> = {
     packageName: 'hackmyagent',
     description: 'Run security benchmark against AI agent (OASB)',
   },
+  'scan-soul': {
+    name: 'scan-soul',
+    method: 'import',
+    packageName: 'hackmyagent',
+    description: 'Scan governance file for behavioral safety coverage (AGS)',
+  },
+  'harden-soul': {
+    name: 'harden-soul',
+    method: 'import',
+    packageName: 'hackmyagent',
+    description: 'Generate or improve governance file with AGS templates',
+  },
   registry: {
     name: 'registry',
     method: 'import',
@@ -38,12 +50,7 @@ export const ADAPTER_REGISTRY: Record<string, AdapterConfig> = {
     pythonModule: 'cryptoserve',
     description: 'Cryptographic inventory and PQC readiness (CryptoServe)',
   },
-  identity: {
-    name: 'identity',
-    method: 'spawn',
-    command: 'aim',
-    description: 'Agent identity management (AIM SDK)',
-  },
+  // identity is now handled directly by packages/cli/src/commands/identity.ts
   // guard is now handled directly by packages/cli/src/commands/guard.ts (ConfigGuard)
   broker: {
     name: 'broker',

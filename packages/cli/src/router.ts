@@ -1,7 +1,7 @@
 import { createAdapter } from './adapters/index.js';
 import type { AdapterConfig, RunOptions } from './adapters/types.js';
 import { protect } from './commands/protect.js';
-import { isContributeEnabled, getRegistryUrl, submitScanReport, recordScanAndMaybePrompt } from './util/report-submission.js';
+import { isContributeEnabled, getRegistryUrl, submitScanReport, normalizeGovernanceReport, recordScanAndMaybePrompt } from './util/report-submission.js';
 
 export type InputType = 'subcommand' | 'search' | 'context' | 'natural' | 'guided';
 
@@ -54,6 +54,7 @@ export function classifyInput(argv: string[]): ClassifiedInput {
     'identity', 'registry', 'train',
     'guard', 'broker', 'config', 'self-register',
     'verify', 'baselines', 'review',
+    'scan-soul', 'harden-soul',
   ];
 
   if (KNOWN_COMMANDS.includes(first)) {
@@ -117,6 +118,22 @@ export async function dispatchCommand(
     });
   }
 
+  // Handle 'identity' directly (aim-core native)
+  if (command === 'identity') {
+    const { identity } = await import('./commands/identity.js');
+    const subcommand = args[0] ?? 'list';
+    const nameIdx = args.indexOf('--name');
+    const limitIdx = args.indexOf('--limit');
+    return identity({
+      subcommand,
+      name: nameIdx >= 0 ? args[nameIdx + 1] : undefined,
+      limit: limitIdx >= 0 ? parseInt(args[limitIdx + 1], 10) : undefined,
+      ci: globalOptions.ci ?? false,
+      format: (globalOptions.format as string) ?? 'text',
+      verbose: globalOptions.verbose ?? false,
+    });
+  }
+
   // Handle 'runtime' directly (ARP wrapper)
   if (command === 'runtime') {
     const { runtime } = await import('./commands/runtime.js');
@@ -167,23 +184,34 @@ export async function dispatchCommand(
     cwd: globalOptions.cwd ?? process.cwd(),
   });
 
-  // Community contribution: submit scan reports when contribute is enabled
+  // Track scan count and prompt to contribute after enough scans.
+  // This runs on EVERY scan so the prompt can fire when threshold is reached.
+  try {
+    await recordScanAndMaybePrompt();
+  } catch {
+    // Non-critical -- never block on contribution failures
+  }
+
+  // Community contribution: submit scan reports when contribute is enabled.
   // This is best-effort and non-blocking -- failures are silently ignored.
   if (globalOptions.contribute || await isContributeEnabled()) {
     try {
       const registryUrl = await getRegistryUrl();
       // Parse stdout for scan report JSON (adapters that produce scan results)
-      if (result.stdout && (adapterName === 'scan' || adapterName === 'benchmark')) {
+      if (result.stdout && (adapterName === 'scan' || adapterName === 'benchmark' || adapterName === 'scan-soul')) {
         try {
           const report = JSON.parse(result.stdout);
-          if (report.overallScore !== undefined || report.findings) {
+          // Governance scans (scan-soul) need normalization to ScanReport format
+          const normalized = normalizeGovernanceReport(report);
+          if (normalized) {
+            await submitScanReport(registryUrl, normalized, globalOptions.verbose);
+          } else if (report.overallScore !== undefined || report.findings) {
             await submitScanReport(registryUrl, report, globalOptions.verbose);
           }
         } catch {
           // stdout wasn't valid scan report JSON -- that's fine
         }
       }
-      await recordScanAndMaybePrompt();
     } catch {
       // Non-critical -- never block on contribution failures
     }
