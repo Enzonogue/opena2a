@@ -329,6 +329,26 @@ export async function protect(options: ProtectOptions): Promise<number> {
     return 0;
   }
 
+  // Confirm before making any changes (interactive mode only)
+  if (!isJson && !options.ci) {
+    let confirmed = false;
+    try {
+      const { confirm } = await import('@inquirer/prompts');
+      confirmed = await confirm({
+        message: `Migrate ${matches.length} credential${matches.length === 1 ? '' : 's'} to Secretless AI vault?`,
+        default: true,
+      });
+    } catch {
+      // Ctrl+C or non-interactive — treat as no
+      process.stdout.write('\n');
+      return 0;
+    }
+    if (!confirmed) {
+      process.stdout.write(dim('No changes made. Run with --dry-run to preview.\n'));
+      return 0;
+    }
+  }
+
   // Phase 2: Migrate credentials
   if (!isJson) {
     spinner.update('Migrating credentials to Secretless vault...');
