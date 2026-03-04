@@ -1,85 +1,58 @@
 # Unbuilt Features — Documented from Blog Audit
-
-This document tracks features claimed in OpenA2A blogs that have not yet been built.
-Audit date: 2026-03-04. Build in priority order.
+Audit date: 2026-03-04. All priorities completed 2026-03-04.
 
 ---
 
 ## Priority 1: SOUL Scanner — Expand from 26 to 68 Controls
+**Status: DONE** — hackmyagent@0.9.2
 
-**Blog:** soul-md-ai-governance-opena2a
-**Current state:** `scan-soul` implements 26 of 68 specified OASB v2 controls
-**Gap:** Need to add 42 more controls (currently ~3 per domain; spec targets 8-10 per domain)
+All 68 controls implemented across 8 domains:
+| Domain | Controls |
+|--------|---------|
+| 7: Trust Hierarchy | 8 |
+| 8: Capability Boundaries | 10 |
+| 9: Injection Hardening | 8 |
+| 10: Data Handling | 8 |
+| 11: Hardcoded Behaviors | 8 |
+| 12: Agentic Safety | 10 |
+| 13: Honesty and Transparency | 8 |
+| 14: Human Oversight | 8 |
 
-Per-domain expansion needed:
-
-| Domain | Current | Target | Gap |
-|--------|---------|--------|-----|
-| 7: Trust Hierarchy | 2 | 8 | +6 |
-| 8: Capability Boundaries | 4 | 10 | +6 |
-| 9: Injection Hardening | 3 | 8 | +5 |
-| 10: Data Handling | 3 | 8 | +5 |
-| 11: Hardcoded Behaviors | 3 | 8 | +5 |
-| 12: Agentic Safety | 3 | 10 | +7 |
-| 13: Honesty and Transparency | 3 | 8 | +5 |
-| 14: Human Oversight | 3 | 8 | +5 |
-
-**File:** `hackmyagent/src/soul/scanner.ts` — add controls to `CONTROL_DEFS`
-**Test:** `hackmyagent/src/soul/soul.test.ts` — update expected counts
+Tier counts: BASIC=18, TOOL-USING=26, AGENTIC=37, MULTI-AGENT=68.
 
 ---
 
 ## Priority 2: SOUL Scanner — Layer 3 Semantic Analysis (--deep flag)
+**Status: DONE** — hackmyagent@0.9.2
 
-**Blog:** "Three-Layer Detection" section
-**Current state:** Layer 1 (structural) and Layer 2 (keyword) implemented. Layer 3 marked as "Future".
-**Gap:** `--deep` flag not implemented. Should use `claude --print` (Claude Code CLI) to do LLM-based semantic analysis.
-
-Implementation notes:
-- Add `--deep` flag to `scan-soul` command in `cli.ts`
-- In scanner, after keyword check, if `--deep` enabled:
-  - Call `execSync('claude --print "..."')` with control-specific prompt
-  - Fallback to `$ANTHROPIC_API_KEY` API call if `claude` not available
-- Target confidence bump: 0.7 → 0.95 for controls that pass semantic check
+`--deep` flag implemented. Calls `claude --print` first; falls back to Anthropic API (`claude-haiku-4-5-20251001`) if Claude CLI not available. Only invoked for controls that fail keyword check. Confidence bump: 0.7 → 0.95 on semantic pass.
 
 ---
 
 ## Priority 3: OASB v2 Conformance Levels
+**Status: DONE** — hackmyagent@0.9.2
 
-**Blog:** scoring section (Essential, Standard, Hardened)
-**Current state:** Scanner outputs score + grade but no conformance level label
-**Gap:** Add conformance determination to scan result output
+`conformance: 'none' | 'essential' | 'standard' | 'hardened'` added to `SoulScanResult`.
+- **none** — any CRITICAL control fails (grade capped at C)
+- **essential** — all CRITICAL controls pass
+- **standard** — all CRITICAL + HIGH controls pass, score >= 60
+- **hardened** — all controls pass, score >= 75
 
-Spec:
-- **Essential** — All CRITICAL controls pass (IH-003, HB-001)
-- **Standard** — All CRITICAL + HIGH controls pass, score >= 60
-- **Hardened** — All controls pass, score >= 75
-
-Add `conformance: 'none' | 'essential' | 'standard' | 'hardened'` to `SoulScanResult`
-Display in scan output: `Conformance: ESSENTIAL`
-
-**File:** `hackmyagent/src/soul/scanner.ts`, `src/cli.ts` (display)
+Displayed in scan output: `Conformance: ESSENTIAL`
 
 ---
 
 ## Priority 4: scan-soul Composite Scoring with OASB v1
+**Status: DONE** — hackmyagent@0.9.2
 
-**Blog:** "50% infrastructure (domains 1–6) + 50% governance (domains 7–14)"
-**Current state:** `scan-soul` only scores governance (domains 7–14). No integration with OASB v1 infrastructure scores.
-**Gap:** `opena2a benchmark` runs OASB v1; no way to get composite score.
-
-Implementation notes:
-- `scan-soul --with-benchmark` could run OASB v1 and combine scores
-- Or `opena2a review` could combine both scan results into a composite score
-- This is a significant integration effort
+`secure --benchmark oasb-2` runs both OASB v1 (infrastructure) and soul scan (governance), combines 50/50. Prints composite score and per-half breakdown.
 
 ---
 
 ## Priority 5: `secure --benchmark oasb-2` Command
+**Status: DONE** — hackmyagent@0.9.2
 
-**Blog:** "Full OASB v2 assessment" via `npx hackmyagent secure --benchmark oasb-2`
-**Current state:** The `secure` command exists but `--benchmark oasb-2` flag is not implemented.
-**Gap:** Need to add `--benchmark oasb-2` to run full v1+v2 combined assessment.
+`npx hackmyagent secure --benchmark oasb-2` runs full combined OASB v1+v2 assessment.
 
 ---
 
