@@ -523,7 +523,7 @@ export async function protect(options: ProtectOptions): Promise<number> {
         }
 
         if (currentBackend === '1password' || currentBackend === 'vault') {
-          process.stdout.write(dim(`Credentials stored in ${currentBackend === '1password' ? '1Password' : 'HashiCorp Vault'} (current backend).\n`));
+          // Already on a team vault -- skip the upgrade offer silently
         } else {
           const { select } = await import('@inquirer/prompts');
           const backendChoice = await select({
