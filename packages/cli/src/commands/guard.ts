@@ -216,6 +216,7 @@ async function guardSign(targetDir: string, options: GuardOptions): Promise<numb
     if (signatures.length > 0) {
       process.stdout.write(green(`Signed ${signatures.length} config file${signatures.length === 1 ? '' : 's'}.\n`));
       for (const sig of signatures) { process.stdout.write(dim(`  ${sig.filePath}  ${sig.hash.slice(0, 23)}...\n`)); }
+      process.stdout.write(dim(`Run \`opena2a guard resign\` again after editing signed files.\n`));
     }
     if (skillResults.length > 0) {
       process.stdout.write(green(`Signed ${skillResults.length} skill file${skillResults.length === 1 ? '' : 's'}.\n`));

@@ -195,7 +195,10 @@ export async function protect(options: ProtectOptions): Promise<number> {
           noCredFixes.configsSigned = signResult.signed;
           noCredFixes.configsSignedFiles = signResult.files;
           anyFix = true;
-          if (!isJson) process.stdout.write(dim(`Signed ${signResult.signed} config file${signResult.signed === 1 ? '' : 's'}\n`));
+          if (!isJson) {
+            process.stdout.write(dim(`Signed ${signResult.signed} config file${signResult.signed === 1 ? '' : 's'}\n`));
+            process.stdout.write(dim(`Run \`opena2a guard resign\` after editing signed files\n`));
+          }
         }
       } catch {
         // best-effort
@@ -394,6 +397,7 @@ export async function protect(options: ProtectOptions): Promise<number> {
         additionalFixes.configsSignedFiles = signResult.files;
         if (!isJson) {
           process.stdout.write(dim(`Signed ${signResult.signed} config file${signResult.signed === 1 ? '' : 's'}\n`));
+          process.stdout.write(dim(`Run \`opena2a guard resign\` after editing signed files\n`));
         }
       }
     } catch {
@@ -1015,6 +1019,7 @@ function printReport(report: ProtectReport): void {
     }
     if (af.configsSigned && af.configsSigned > 0) {
       process.stdout.write(`  ${dim('Config signing')}   Signed ${af.configsSigned} config file${af.configsSigned === 1 ? '' : 's'}\n`);
+      process.stdout.write(`  ${dim('                  Run \`opena2a guard resign\` after editing signed files')}\n`);
     }
   }
 
