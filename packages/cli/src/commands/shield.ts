@@ -21,6 +21,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { EventSeverity } from '../shield/types.js';
 import { bold, dim, gray, green, yellow, red, cyan } from '../util/colors.js';
+import { severityColor } from '../util/format.js';
 
 // --- Types ---
 
@@ -1459,12 +1460,5 @@ async function handleTriage(options: ShieldOptions): Promise<number> {
 // --- Formatting helpers ---
 
 function colorSeverity(severity: EventSeverity): string {
-  switch (severity) {
-    case 'info': return dim('INFO');
-    case 'low': return gray('LOW');
-    case 'medium': return yellow('MEDIUM');
-    case 'high': return red('HIGH');
-    case 'critical': return bold(red('CRITICAL'));
-    default: return dim(String(severity));
-  }
+  return severityColor(severity)(severity.toUpperCase());
 }

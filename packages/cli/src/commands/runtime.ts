@@ -11,6 +11,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { bold, green, yellow, red, dim, gray, cyan } from '../util/colors.js';
+import { severityColor } from '../util/format.js';
 import { detectProject } from '../util/detect.js';
 
 // --- Types ---
@@ -203,9 +204,8 @@ async function runtimeTail(targetDir: string, options: RuntimeOptions): Promise<
       try {
         const event = JSON.parse(line);
         const ts = event.timestamp ? dim(event.timestamp.slice(11, 19)) + ' ' : '';
-        const severity = event.severity === 'critical' ? red(event.severity)
-          : event.severity === 'high' ? yellow(event.severity)
-          : dim(event.severity ?? 'info');
+        const sev = event.severity ?? 'info';
+        const severity = severityColor(sev)(sev);
         process.stdout.write(`  ${ts}${severity.padEnd(16)} ${event.message ?? event.type ?? line}\n`);
       } catch {
         process.stdout.write(`  ${dim(line)}\n`);

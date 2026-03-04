@@ -2,11 +2,11 @@ import { bold, red, yellow, green, cyan, gray } from './colors.js';
 
 export function severityColor(severity: string): (text: string) => string {
   switch (severity) {
-    case 'critical': return red;
-    case 'high': return red;
-    case 'medium': return yellow;
-    case 'low': return cyan;
-    default: return gray;
+    case 'critical': return (text: string) => bold(red(text));
+    case 'high':     return red;
+    case 'medium':   return yellow;
+    case 'low':      return green;
+    default:         return gray;
   }
 }
 

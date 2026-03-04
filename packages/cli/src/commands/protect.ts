@@ -247,7 +247,7 @@ export async function protect(options: ProtectOptions): Promise<number> {
             ' -- ' + result.detail + '\n'
           );
           process.stdout.write(
-            '  Severity escalated: ' + yellow('high') + ' -> ' + red('critical') + '\n\n'
+            '  Severity escalated: ' + severityLabel('high') + ' -> ' + severityLabel('critical') + '\n\n'
           );
         } else if (result.checked && !result.error) {
           process.stdout.write(

@@ -11,7 +11,7 @@ import { bold, green, yellow, red, cyan, dim, gray } from '../util/colors.js';
 import { detectProject, type ProjectInfo, type ProjectType } from '../util/detect.js';
 import { quickCredentialScan, type CredentialMatch } from '../util/credential-patterns.js';
 import { checkAdvisories, printAdvisoryWarnings, type AdvisoryCheck } from '../util/advisories.js';
-import { wordWrap } from '../util/format.js';
+import { wordWrap, severityLabel, severityColor } from '../util/format.js';
 import { getVersion } from '../util/version.js';
 import { Spinner } from '../util/spinner.js';
 import { writeEvent, getShieldDir } from '../shield/events.js';
@@ -971,10 +971,11 @@ function printReport(report: InitReport, elapsed: string, verbose?: boolean): vo
     const displayFindings = report.findings.slice(0, maxFindings);
 
     for (const finding of displayFindings) {
-      const sevTag = finding.severity === 'critical' ? red('CRITICAL')
-        : finding.severity === 'high' ? yellow('HIGH    ')
-        : finding.severity === 'medium' ? cyan('MEDIUM  ')
-        : dim('LOW     ');
+      const sevPad = finding.severity === 'critical' ? ''
+        : finding.severity === 'high' ? '    '
+        : finding.severity === 'medium' ? '  '
+        : '     ';
+      const sevTag = severityColor(finding.severity)(finding.severity.toUpperCase()) + sevPad;
 
       const countPrefix = finding.count > 1 ? `${finding.count} ` : '';
       process.stdout.write(`  ${sevTag}  ${countPrefix}${bold(finding.title)}\n`);
