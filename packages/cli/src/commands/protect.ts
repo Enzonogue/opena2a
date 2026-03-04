@@ -197,8 +197,8 @@ export async function protect(options: ProtectOptions): Promise<number> {
           noCredFixes.configsSignedFiles = signResult.files;
           anyFix = true;
           if (!isJson) {
-            process.stdout.write(dim(`Signed ${signResult.signed} config file${signResult.signed === 1 ? '' : 's'}\n`));
-            process.stdout.write(dim(`Run \`opena2a guard resign\` after editing signed files\n`));
+            process.stdout.write(green(`Signed ${signResult.signed} config file${signResult.signed === 1 ? '' : 's'}\n`));
+            process.stdout.write(yellow(`Run \`opena2a guard resign\` after editing signed files\n`));
           }
         }
       } catch {
@@ -357,7 +357,7 @@ export async function protect(options: ProtectOptions): Promise<number> {
         const configResult = configureSecretlessForAiTools(targetDir, configItems);
         aiToolsUpdated = configResult.toolsUpdated;
         if (!isJson && configResult.toolsUpdated.length > 0) {
-          process.stdout.write(dim(`Updated AI tool configs: ${configResult.toolsUpdated.join(', ')}\n`));
+          process.stdout.write(green(`Updated AI tool configs: ${configResult.toolsUpdated.join(', ')}\n`));
         }
       }
     } catch {
@@ -397,8 +397,8 @@ export async function protect(options: ProtectOptions): Promise<number> {
         additionalFixes.configsSigned = signResult.signed;
         additionalFixes.configsSignedFiles = signResult.files;
         if (!isJson) {
-          process.stdout.write(dim(`Signed ${signResult.signed} config file${signResult.signed === 1 ? '' : 's'}\n`));
-          process.stdout.write(dim(`Run \`opena2a guard resign\` after editing signed files\n`));
+          process.stdout.write(green(`Signed ${signResult.signed} config file${signResult.signed === 1 ? '' : 's'}\n`));
+          process.stdout.write(yellow(`Run \`opena2a guard resign\` after editing signed files\n`));
         }
       }
     } catch {
@@ -892,7 +892,7 @@ function updateEnvExample(
   if (added > 0) {
     fs.writeFileSync(envExamplePath, content, 'utf-8');
     if (!quiet) {
-      process.stdout.write(dim(`Updated .env.example with ${added} variable(s).\n`));
+      process.stdout.write(green(`Updated .env.example with ${added} variable(s).\n`));
     }
   }
 }
@@ -1010,17 +1010,17 @@ function printReport(report: ProtectReport): void {
   if (af && (af.gitignoreFixed || af.gitExclusionsAdded?.length || af.configsSigned)) {
     process.stdout.write('\n' + bold('Additional fixes applied:') + '\n');
     if (af.gitignoreFixed) {
-      process.stdout.write(`  ${dim('.gitignore')}       Added .env exclusion\n`);
+      process.stdout.write(`  ${dim('.gitignore')}       ${green('Added .env exclusion')}\n`);
     }
     if (af.gitExclusionsAdded && af.gitExclusionsAdded.length > 0) {
-      process.stdout.write(`  ${dim('Git exclusions')}   Added ${af.gitExclusionsAdded.join(', ')} to .git/info/exclude\n`);
+      process.stdout.write(`  ${dim('Git exclusions')}   ${green(`Added ${af.gitExclusionsAdded.join(', ')} to .git/info/exclude`)}\n`);
     }
     if (report.aiToolsUpdated && report.aiToolsUpdated.length > 0) {
-      process.stdout.write(`  ${dim('AI tool configs')}  Updated ${report.aiToolsUpdated.join(', ')}\n`);
+      process.stdout.write(`  ${dim('AI tool configs')}  ${green(`Updated ${report.aiToolsUpdated.join(', ')}`)}\n`);
     }
     if (af.configsSigned && af.configsSigned > 0) {
-      process.stdout.write(`  ${dim('Config signing')}   Signed ${af.configsSigned} config file${af.configsSigned === 1 ? '' : 's'}\n`);
-      process.stdout.write(`  ${dim('                  Run \`opena2a guard resign\` after editing signed files')}\n`);
+      process.stdout.write(`  ${dim('Config signing')}   ${green(`Signed ${af.configsSigned} config file${af.configsSigned === 1 ? '' : 's'}`)}\n`);
+      process.stdout.write(`  ${yellow('                  Run `opena2a guard resign` after editing signed files')}\n`);
     }
   }
 
