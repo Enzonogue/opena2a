@@ -104,7 +104,7 @@ export const SKIP_DIRS = new Set([
   '.tox', '.mypy_cache', '.pytest_cache',
   '__tests__', 'test', 'tests', 'spec', 'specs',
   'fixtures', 'testdata', 'test-data',
-  'docs', 'examples', 'e2e',
+  'e2e',
 ]);
 
 export const SKIP_EXTENSIONS = new Set([
