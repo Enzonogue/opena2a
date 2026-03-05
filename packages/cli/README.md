@@ -36,7 +36,7 @@ No configuration required. Works with Node.js, Python, Go, and MCP server projec
 Run `opena2a init` in any project directory to get an instant security assessment:
 
 ```
-  OpenA2A Security Report  v0.5.0
+  OpenA2A Security Report  v0.5.3
 
   Project      myapp v2.1.0
   Type         Node.js + MCP server
