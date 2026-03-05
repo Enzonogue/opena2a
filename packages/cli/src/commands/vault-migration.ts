@@ -188,7 +188,7 @@ export async function offerVaultMigration(ctx: VaultMigrationContext): Promise<b
     if (mod.migrateSecrets && mod.createBackend) {
       const sourceBackend = mod.createBackend('local');
       const destBackend   = mod.createBackend('vault', { addr: vaultAddr, token: vaultToken });
-      const result = await mod.migrateSecrets(sourceBackend, destBackend, { deleteFromSource: false, prefix: 'secret' });
+      const result = await mod.migrateSecrets(sourceBackend, destBackend, { deleteFromSource: false, prefix: '' });
       spinner.stop();
 
       const migrated = result?.migrated ?? 0;
